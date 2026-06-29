@@ -1,6 +1,10 @@
 name: CI
 on: [push, pull_request]
 
+# Least privilege: the workflow only needs to read the repo.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
