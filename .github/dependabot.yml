@@ -13,6 +13,11 @@ updates:
       default-days: 3
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Garde @types/node aligné sur la version de Node exécutée (22.x) :
+      # on ne suit que la ligne 22, pas les sauts majeurs (23/24/25/26).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # Patches isolés dans leur propre PR (type semver-patch)
       # → éligibles à l'auto-merge si la CI passe.
