@@ -9,10 +9,14 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     groups:
-      # Minor + patch regroupés en 1 seule PR (faible bruit).
-      # Les majors arrivent en PR séparées pour relire les breaking changes.
-      deps-mineures:
-        update-types: ["minor", "patch"]
+      # Patches isolés dans leur propre PR (type semver-patch)
+      # → éligibles à l'auto-merge si la CI passe.
+      patches:
+        update-types: ["patch"]
+      # Minors groupés à part → PR séparée, validation manuelle.
+      # Les majors arrivent en PR individuelles (breaking changes à relire).
+      minors:
+        update-types: ["minor"]
 
   # Versions des actions GitHub (actions/checkout, setup-node, etc.)
   - package-ecosystem: "github-actions"
