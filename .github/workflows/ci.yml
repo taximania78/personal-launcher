@@ -1,0 +1,44 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: launcher_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/launcher_test
+      DATABASE_URL: postgres://postgres:test@localhost:5432/launcher_test
+      DATABASE_URL_READ: postgres://postgres:test@localhost:5432/launcher_test
+      N8N_TODO_WEBHOOK_URL: http://localhost/dummy
+      N8N_TODO_WEBHOOK_TOKEN: ci_token
+      NEXT_PUBLIC_WHOOGLE_URL: http://whoogle.local
+      APP_READER_PWD: ci_reader
+      APP_WRITER_PWD: ci_writer
+      N8N_WRITER_PWD: ci_n8n
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: pnpm/action-setup@v3
+        with: { version: 11 }
+      - run: pnpm install --frozen-lockfile
+      - name: Run migrations
+        run: |
+          OPTS="-c%20app.reader_pwd%3D${APP_READER_PWD}%20-c%20app.writer_pwd%3D${APP_WRITER_PWD}%20-c%20app.n8n_pwd%3D${N8N_WRITER_PWD}"
+          DATABASE_URL_ADMIN="postgres://postgres:test@localhost:5432/launcher_test?options=${OPTS}" \
+            pnpm migrate
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test

@@ -1,0 +1,56 @@
+# HOMELAB / PRODUCTION DEPLOY ONLY — do NOT use this for local dev.
+# It needs the external network `shared-n8n` (for n8n → Postgres). The front is
+# published directly on host port 8081 — LAN access only, no auth. It still
+# won't start on a laptop: the external network is missing. To run locally, use:
+#   pnpm dev:up   (see AGENTS.md / README "Quickstart (dev)").
+services:
+  app:
+    build: .
+    image: launcher:latest
+    restart: unless-stopped
+    # Front accessible sur le LAN : http://<hôte>:8081 (pas d'authentification).
+    ports:
+      - "8081:3000"
+    networks: [launcher-internal]
+    environment:
+      PG_ADMIN_URL_BASE: postgres://postgres:${PG_ADMIN_PWD}@postgres:5432/launcher
+      DATABASE_URL: postgres://app_writer:${APP_WRITER_PWD}@postgres:5432/launcher
+      DATABASE_URL_READ: postgres://app_reader:${APP_READER_PWD}@postgres:5432/launcher
+      APP_READER_PWD: ${APP_READER_PWD}
+      APP_WRITER_PWD: ${APP_WRITER_PWD}
+      N8N_WRITER_PWD: ${N8N_WRITER_PWD}
+      N8N_TODO_WEBHOOK_URL: ${N8N_TODO_WEBHOOK_URL}
+      N8N_TODO_WEBHOOK_TOKEN: ${N8N_TODO_WEBHOOK_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      UPLOAD_DIR: /app/data/uploads
+    volumes:
+      - launcher-uploads:/app/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    networks: [launcher-internal, shared-n8n]
+    environment:
+      POSTGRES_DB: launcher
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_ADMIN_PWD}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d launcher"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  launcher-internal:
+    driver: bridge
+  shared-n8n:
+    external: true
+
+volumes:
+  postgres-data:
+  launcher-uploads:
