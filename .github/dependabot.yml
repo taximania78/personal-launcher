@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Quarantaine : n'ouvre une PR que pour des versions publiées depuis ≥3 j.
+    # Dépasse la fenêtre minimumReleaseAge de pnpm (24 h) → les installs passent,
+    # et c'est une vraie défense supply-chain (on n'adopte pas une release du jour).
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: "chore(deps)"
     groups:
