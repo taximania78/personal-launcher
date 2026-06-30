@@ -4,3 +4,8 @@ allowBuilds:
 onlyBuiltDependencies:
   - sharp
   - unrs-resolver
+# Force postcss patché : next épingle postcss à 8.4.31 (XSS, alerte Dependabot).
+# vite est traité via une devDependency directe (cf. package.json) car il est tiré
+# comme peerDependency de @vitest/mocker → un override ne le bumpe pas.
+overrides:
+  "postcss@<8.5.10": ">=8.5.10"
