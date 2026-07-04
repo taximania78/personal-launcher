@@ -3,7 +3,6 @@ import { useState, useTransition } from 'react'
 
 type Settings = {
   whoogle_url: string
-  focus_default: string
 }
 
 export function GeneralSettings({ initial }: { initial: Settings }) {
@@ -17,10 +16,7 @@ export function GeneralSettings({ initial }: { initial: Settings }) {
       const res = await fetch('/api/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          whoogle_url: values.whoogle_url,
-          focus_default: values.focus_default,
-        }),
+        body: JSON.stringify({ whoogle_url: values.whoogle_url }),
       })
       setSaved(res.ok ? 'ok' : 'error')
       if (res.ok) setTimeout(() => setSaved('idle'), 1500)
@@ -37,17 +33,6 @@ export function GeneralSettings({ initial }: { initial: Settings }) {
             value={values.whoogle_url}
             onChange={e => setValues(v => ({ ...v, whoogle_url: e.target.value }))}
             placeholder="https://whoogle.example.com (vide → Google)"
-            className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-[var(--radius-md)] px-3 py-2 text-sm outline-none focus:border-[var(--color-text-secondary)]"
-          />
-        </label>
-
-        <label className="grid gap-1">
-          <span className="text-xs text-[var(--color-text-secondary)]">Focus banner par défaut</span>
-          <input
-            type="text"
-            value={values.focus_default}
-            onChange={e => setValues(v => ({ ...v, focus_default: e.target.value }))}
-            placeholder="Aucun focus défini (vide → —)"
             className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-[var(--radius-md)] px-3 py-2 text-sm outline-none focus:border-[var(--color-text-secondary)]"
           />
         </label>
