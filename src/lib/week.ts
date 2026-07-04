@@ -28,3 +28,8 @@ export function parisWeekDays(now: Date = new Date()): string[] {
     return day.toISOString().slice(0, 10)
   })
 }
+
+/** Date ISO (YYYY-MM-DD) du lundi de la semaine Europe/Paris contenant `now`. */
+export function parisMonday(now: Date = new Date()): string {
+  return parisWeekDays(now)[0]
+}
