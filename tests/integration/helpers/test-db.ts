@@ -7,7 +7,7 @@ export const testPool = new Pool({ connectionString: TEST_URL, max: 5 })
 
 export async function truncateAll() {
   await testPool.query(`
-    TRUNCATE todos, calendar, applications, services, launcher_tiles, habits, habit_checks, agent_tokens
+    TRUNCATE day_journal, week_priorities, todos, calendar, applications, services, launcher_tiles, habits, habit_checks, agent_tokens
     RESTART IDENTITY CASCADE;
   `)
   await testPool.query(`DELETE FROM meteo;`)
