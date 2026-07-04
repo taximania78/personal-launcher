@@ -48,6 +48,18 @@ describe('/api/agent/journal/[date]', () => {
     expect((await put.json()).focus_outcome).toBe('expired')
   })
 
+  it('focus_todo_id : chaîne numérique coercée en number, null préservé', async () => {
+    const day = parisToday()
+    const { createTodo } = await import('@/lib/queries/todos')
+    const t = await createTodo('Cible focus', false)
+    const put1 = await PUT(await authed('PUT', day, { focus_todo_id: String(t.id) }), ctx(day))
+    expect(put1.status).toBe(200)
+    expect((await put1.json()).focus_todo_id).toBe(Number(t.id))
+    const put2 = await PUT(await authed('PUT', day, { focus_todo_id: null }), ctx(day))
+    expect(put2.status).toBe(200)
+    expect((await put2.json()).focus_todo_id).toBeNull()
+  })
+
   it('GET renvoie null quand rien n\'est écrit', async () => {
     const day = parisToday()
     const res = await GET(await authed('GET', day), ctx(day))
