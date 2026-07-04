@@ -184,7 +184,7 @@ export const agentOpenApiSpec = {
         parameters: [
           { name: 'week_start', in: 'query', required: false, schema: { type: 'string', example: '2026-06-29' }, description: 'Lundi de la semaine visée' },
         ],
-        responses: { '200': { description: 'WeekPriority[]' }, '401': { description: 'Non autorisé' } },
+        responses: { '200': { description: 'WeekPriority[]' }, '400': { description: 'week_start invalide (format YYYY-MM-DD requis)' }, '401': { description: 'Non autorisé' } },
       },
       post: {
         summary: 'Créer une priorité (3 max/semaine ; week_start permet de poser la semaine suivante le dimanche soir)',

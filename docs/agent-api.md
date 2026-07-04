@@ -170,10 +170,7 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json
 
 ### Priorités de la semaine
 
-3 priorités maximum par semaine (`week_start`, toujours un **lundi** —
-`400` sinon). Par défaut, `week_start` vaut le lundi de la semaine courante ;
-on peut le forcer (ex. le dimanche soir, pour poser les priorités de la
-semaine suivante).
+3 priorités maximum par semaine. À la **création** (POST), `week_start` doit être un lundi (`400` sinon) ; à la **lecture** (GET), seul le format `YYYY-MM-DD` est validé. Par défaut, `week_start` vaut le lundi courant.
 
 ```bash
 # Lire les priorités de la semaine courante
