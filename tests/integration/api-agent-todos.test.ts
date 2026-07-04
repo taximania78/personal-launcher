@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
-import { truncateAll, closePool } from './helpers/test-db'
+import { truncateAll, closePool, testPool } from './helpers/test-db'
 vi.mock('@/lib/n8n', () => ({ pushTodoSync: vi.fn() }))
 
 import { POST } from '@/app/api/agent/todos/route'
@@ -106,5 +106,45 @@ describe('PATCH/DELETE /api/agent/todos/:id', () => {
     }), { params: Promise.resolve({ id: String(id) }) })
     expect(res.status).toBe(204)
     expect((await listTodos()).map(t => t.id)).not.toContain(id)
+  })
+})
+
+describe('création datée et report (v2)', () => {
+  beforeEach(() => truncateAll())
+
+  it('POST { scheduled_for } crée une todo datée à J+3', async () => {
+    const { parisToday } = await import('@/lib/week')
+    const [y, m, d] = parisToday().split('-').map(Number)
+    const anchor = new Date(Date.UTC(y, m - 1, d, 12))
+    anchor.setUTCDate(anchor.getUTCDate() + 3)
+    const target = anchor.toISOString().slice(0, 10)
+
+    const res = await POST(new Request('http://x/api/agent/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: await bearer() },
+      body: JSON.stringify({ text: 'Jeudi', scheduled_for: target }),
+    }))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const r = await testPool.query(
+      `SELECT scheduled_for::text FROM todos WHERE id = $1`, [body.id])
+    expect(r.rows[0].scheduled_for).toBe(target)
+  })
+
+  it('PATCH { scheduled_for } ultérieur reporte et incrémente postponed_count', async () => {
+    const { parisTomorrow } = await import('@/lib/week')
+    const create = await POST(new Request('http://x/api/agent/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: await bearer() },
+      body: JSON.stringify({ text: 'À reporter' }),
+    }))
+    const { id } = await create.json()
+    const res = await PATCH(new Request(`http://x/api/agent/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: await bearer() },
+      body: JSON.stringify({ scheduled_for: parisTomorrow() }),
+    }), { params: Promise.resolve({ id: String(id) }) })
+    expect(res.status).toBe(200)
+    expect((await res.json()).postponed_count).toBe(1)
   })
 })
