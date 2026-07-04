@@ -4,6 +4,7 @@ import { SearchBar } from '@/components/socle/SearchBar'
 import { Launcher } from '@/components/socle/Launcher'
 import { FocusBanner } from '@/components/cockpit/FocusBanner'
 import { TodoCard } from '@/components/cockpit/TodoCard'
+import { WeekCard } from '@/components/cockpit/WeekCard'
 import { HabitsCard } from '@/components/cockpit/HabitsCard'
 import { AgendaCard } from '@/components/cockpit/AgendaCard'
 import { JobCard } from '@/components/cockpit/JobCard'
@@ -32,6 +33,10 @@ export default async function Home() {
       <Launcher />
 
       <Suspense fallback={<FocusBannerSkeleton />}><FocusBanner /></Suspense>
+
+      <div className="mb-3.5">
+        <Suspense fallback={<CardSkeleton />}><WeekCard /></Suspense>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-3.5">
         <Suspense fallback={<CardSkeleton />}><TodoCard /></Suspense>
