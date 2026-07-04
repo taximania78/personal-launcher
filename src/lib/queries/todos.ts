@@ -12,13 +12,14 @@ export type Todo = {
   postponed_count: number
 }
 
-export type TodoListItem = Todo & { overdue: boolean }
+export type TodoListItem = Todo & { overdue: boolean; days_overdue: number }
 
 export async function listTodos(): Promise<TodoListItem[]> {
   const today = parisToday()
   const r = await readerPool.query<TodoListItem>(`
     SELECT id, text, done, position, is_focus, created_at, updated_at, postponed_count,
-           (done = FALSE AND scheduled_for < $1::date) AS overdue
+           (done = FALSE AND scheduled_for < $1::date) AS overdue,
+           GREATEST(($1::date - scheduled_for), 0)::int AS days_overdue
     FROM todos
     WHERE (is_focus = FALSE OR scheduled_for < $1::date)
       AND (
@@ -88,7 +89,11 @@ export async function setFocus(id: number, date: string = parisToday()): Promise
     )
     const r = await c.query<Todo>(`
       UPDATE todos
-      SET is_focus = TRUE, scheduled_for = $2::date, updated_at = NOW()
+      SET is_focus = TRUE,
+          postponed_count = postponed_count
+            + CASE WHEN $2::date > scheduled_for AND done = FALSE THEN 1 ELSE 0 END,
+          scheduled_for = $2::date,
+          updated_at = NOW()
       WHERE id = $1
       RETURNING id, text, done, position, is_focus, created_at, updated_at, postponed_count
     `, [id, date])
@@ -177,7 +182,7 @@ export async function listTriageTodos(): Promise<TriageTodo[]> {
            GREATEST(($1::date - scheduled_for), 0)::int AS days_overdue
     FROM todos
     WHERE done = FALSE
-      AND is_focus = FALSE
+      AND NOT (is_focus = TRUE AND scheduled_for >= $1::date)
       AND (postponed_count >= 3 OR scheduled_for <= $1::date - 3)
     ORDER BY scheduled_for ASC, id ASC
   `, [parisToday()])

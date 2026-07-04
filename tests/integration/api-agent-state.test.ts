@@ -57,6 +57,10 @@ describe('GET /api/agent/state', () => {
     await createWeekPriority(parisMonday(), 'Prio de la semaine')
     const habit = await createHabit('Sport', 'Dumbbell')
     await setHabitCheck(habit.id, parisToday(), true)
+    const [yy, ym, yd] = parisToday().split('-').map(Number)
+    const yAnchor = new Date(Date.UTC(yy, ym - 1, yd, 12))
+    yAnchor.setUTCDate(yAnchor.getUTCDate() - 1)
+    await createTodo('Retard 1j', false, yAnchor.toISOString().slice(0, 10))
 
     const body = await (await GET(await authedReq())).json()
     expect(body.focus).toMatchObject({ text: 'Focus du jour', done: false, why: 'Parce que ça compte' })
@@ -67,5 +71,6 @@ describe('GET /api/agent/state', () => {
     expect(body.todos.upcoming.map((t: { text: string }) => t.text)).toContain('Dans trois jours')
     expect(body.week_priorities.map((p: { text: string }) => p.text)).toContain('Prio de la semaine')
     expect(body.habits.find((h: { name: string }) => h.name === 'Sport').checks_last_7).toBe(1)
+    expect(body.todos.today.find((t: { text: string }) => t.text === 'Retard 1j').days_overdue).toBe(1)
   })
 })

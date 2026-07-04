@@ -292,4 +292,29 @@ describe('focus par jour, reports, triage, à-venir', () => {
     expect(upcoming.map(t => t.text)).toEqual(['Jeudi', 'Limite'])
     expect(upcoming[0].scheduled_for).toBe(shiftDays(3))
   })
+
+  it('setFocus vers une date ultérieure compte comme un report (spec §5.2)', async () => {
+    const t = await createTodo('Promue demain', false)
+    const focused = await setFocus(t.id, parisTomorrow())
+    expect(focused.postponed_count).toBe(1)
+    const again = await setFocus(t.id, parisTomorrow())
+    expect(again.postponed_count).toBe(1)
+  })
+
+  it('un focus périmé (≥3 j) entre au triage ; le focus du jour reste exclu', async () => {
+    const stale = await createFocusTodo('Focus abandonné')
+    await testPool.query(`UPDATE todos SET scheduled_for = $2::date WHERE id = $1`, [stale.id, shiftDays(-3)])
+    await createFocusTodo('Focus du jour')
+    const texts = (await listTriageTodos()).map(t => t.text)
+    expect(texts).toContain('Focus abandonné')
+    expect(texts).not.toContain('Focus du jour')
+  })
+
+  it('listTodos expose days_overdue (0 pour aujourd\'hui, N pour le retard)', async () => {
+    await createTodo('Du jour', false)
+    const late = await createTodo('En retard', false, shiftDays(-2))
+    const list = await listTodos()
+    expect(list.find(x => x.id === late.id)?.days_overdue).toBe(2)
+    expect(list.find(x => x.text === 'Du jour')?.days_overdue).toBe(0)
+  })
 })

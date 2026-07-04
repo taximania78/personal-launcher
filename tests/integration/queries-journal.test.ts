@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { truncateAll, closePool } from './helpers/test-db'
 import { getDayJournal, upsertDayJournal, listJournals } from '@/lib/queries/journal'
-import { parisToday } from '@/lib/week'
+import { parisToday, parisTomorrow } from '@/lib/week'
 
 afterAll(() => closePool())
 
@@ -48,5 +48,13 @@ describe('queries day_journal', () => {
     const rows = await listJournals(14)
     expect(rows.map(r => r.day)).toContain(today)
     expect(rows.map(r => r.day)).not.toContain('2000-01-01')
+  })
+
+  it('listJournals exclut les jours futurs (journal de demain posé au shutdown)', async () => {
+    await upsertDayJournal(parisToday(), { why: 'Aujourd\'hui' })
+    await upsertDayJournal(parisTomorrow(), { why: 'Demain' })
+    const rows = await listJournals(7)
+    expect(rows.map(r => r.day)).toContain(parisToday())
+    expect(rows.map(r => r.day)).not.toContain(parisTomorrow())
   })
 })

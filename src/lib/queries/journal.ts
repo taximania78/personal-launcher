@@ -68,7 +68,7 @@ export async function listJournals(days: number): Promise<DayJournal[]> {
   const r = await readerPool.query<DayJournal>(
     `SELECT ${RETURN_COLS}
      FROM day_journal
-     WHERE day > $1::date - $2::int
+     WHERE day > $1::date - $2::int AND day <= $1::date
      ORDER BY day DESC`,
     [parisToday(), days],
   )

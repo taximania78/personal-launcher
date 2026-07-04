@@ -39,7 +39,8 @@ export async function GET(req: Request) {
         : null,
       todos: {
         today: today.map((t) => ({
-          id: t.id, text: t.text, done: t.done, overdue: t.overdue, postponed_count: t.postponed_count,
+          id: t.id, text: t.text, done: t.done, overdue: t.overdue, days_overdue: t.days_overdue,
+          postponed_count: t.postponed_count,
         })),
         tomorrow: tomorrow.map((t) => ({
           id: t.id, text: t.text, done: t.done, postponed_count: t.postponed_count,
