@@ -10,10 +10,10 @@ export function FocusBannerView({
   todoId: number | null
 }) {
   const [state, setState] = useState(initial)
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
 
   function toggleDone() {
-    if (state.kind === 'unset' || todoId === null) return
+    if (isPending || state.kind === 'unset' || todoId === null) return
     const previous = state
     // Pas de spread de l'union discriminée : TS ne réassignerait pas le résultat à FocusBannerState.
     const nextState: FocusBannerState = state.kind === 'done'
@@ -31,6 +31,7 @@ export function FocusBannerView({
   }
 
   function toggleDeepWork() {
+    if (isPending) return
     const previous = state
     const next = !state.deepWork
     setState(previous.kind === 'unset'
@@ -87,7 +88,8 @@ export function FocusBannerView({
         <button
           onClick={toggleDeepWork}
           aria-pressed={state.deepWork}
-          className={`text-xs px-2.5 py-1 rounded-full transition-colors ${state.deepWork
+          disabled={isPending}
+          className={`text-xs px-2.5 py-1 rounded-full transition-colors disabled:opacity-50 ${state.deepWork
             ? 'bg-[var(--color-bg-info)] text-[var(--color-text-info)] font-semibold'
             : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'}`}
         >
@@ -96,7 +98,9 @@ export function FocusBannerView({
         {state.kind !== 'unset' && (
           <button
             onClick={toggleDone}
-            className={`text-xs px-2.5 py-1 rounded-full transition-colors ${state.kind === 'done'
+            disabled={isPending}
+            aria-pressed={state.kind === 'done'}
+            className={`text-xs px-2.5 py-1 rounded-full transition-colors disabled:opacity-50 ${state.kind === 'done'
               ? 'bg-[var(--color-bg-secondary)] text-[var(--color-text-success)] font-semibold'
               : 'bg-[var(--color-bg-info)] text-[var(--color-text-info)] hover:font-semibold'}`}
           >
