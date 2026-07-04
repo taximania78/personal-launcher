@@ -182,8 +182,8 @@ describe('listTodos — portée du jour', () => {
   it('exclut une tâche de demain et la place dans listTomorrowTodos', async () => {
     const t = await createTodo('Demain', false)
     await testPool.query(
-      `UPDATE todos SET scheduled_for = CURRENT_DATE + 1 WHERE id = $1`,
-      [t.id],
+      `UPDATE todos SET scheduled_for = $2::date WHERE id = $1`,
+      [t.id, parisTomorrow()],
     )
     expect((await listTodos()).find(x => x.id === t.id)).toBeUndefined()
     const tomorrow = await listTomorrowTodos()
