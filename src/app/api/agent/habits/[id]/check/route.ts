@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAgent } from '@/lib/agent-auth'
-import { setHabitCheck } from '@/lib/queries/habits'
+import { findDeepWorkHabit, setHabitCheck } from '@/lib/queries/habits'
+import { upsertDayJournal } from '@/lib/queries/journal'
 import { parisToday } from '@/lib/week'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -27,6 +28,9 @@ export async function POST(req: Request, ctx: Ctx) {
   const day = parsed.data.day ?? parisToday()
   try {
     const result = await setHabitCheck(id, day, parsed.data.checked)
+    // Sync bidirectionnelle : idem que la route UI, côté agent.
+    const habit = await findDeepWorkHabit()
+    if (habit && habit.id === id) await upsertDayJournal(day, { deep_work: result.checked })
     return NextResponse.json(result)
   } catch (err) {
     if ((err as { code?: string }).code === '23503') {

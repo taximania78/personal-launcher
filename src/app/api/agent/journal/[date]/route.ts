@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAgent } from '@/lib/agent-auth'
 import { getDayJournal, upsertDayJournal } from '@/lib/queries/journal'
+import { findDeepWorkHabit, setHabitCheck } from '@/lib/queries/habits'
 
 type Ctx = { params: Promise<{ date: string }> }
 
@@ -45,7 +46,14 @@ export async function PUT(req: Request, ctx: Ctx) {
     return NextResponse.json({ error: z.treeifyError(parsed.error) }, { status: 400 })
   }
   try {
-    return NextResponse.json(await upsertDayJournal(date, parsed.data))
+    const journal = await upsertDayJournal(date, parsed.data)
+    // Sync bidirectionnelle : deep_work explicite → coche/décoche l'habitude
+    // « Deep work » (si elle existe) pour ce jour. null/false décoche.
+    if (parsed.data.deep_work !== undefined) {
+      const habit = await findDeepWorkHabit()
+      if (habit) await setHabitCheck(habit.id, date, parsed.data.deep_work === true)
+    }
+    return NextResponse.json(journal)
   } catch (err) {
     console.error('[api/agent/journal PUT]', err)
     return NextResponse.json({ error: 'internal' }, { status: 500 })

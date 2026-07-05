@@ -168,3 +168,15 @@ export async function getHabitCheckCounts(days: number): Promise<HabitCheckCount
   `, [parisToday(), days])
   return r.rows
 }
+
+/** L'habitude « Deep work » active (insensible à la casse), s'il y en a une. */
+export async function findDeepWorkHabit(): Promise<Habit | null> {
+  const r = await readerPool.query<Habit>(`
+    SELECT ${HABIT_COLS}
+    FROM habits
+    WHERE active = TRUE AND lower(name) = 'deep work'
+    ORDER BY position ASC
+    LIMIT 1
+  `)
+  return r.rows[0] ?? null
+}

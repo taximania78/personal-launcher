@@ -147,7 +147,9 @@ dans le corps. `focus_todo_id` accepte un entier, une chaîne numérique ou
 parmi `trop_gros | imprevu | evite | plus_pertinent | autre` et un
 `report_comment` libre), ou `expired` (jour clos sans issue renseignée).
 `shutdown_at`/`shutdown_mode` (`normal` | `degrade`) tracent le rituel de
-clôture de journée.
+clôture de journée. Si une habitude active s'appelle « Deep work », sa coche
+et `day_journal.deep_work` sont synchronisés automatiquement par le serveur
+(dans les deux sens, pour le jour concerné).
 
 ```bash
 # Lire le journal d'un jour (null si vierge)
@@ -202,6 +204,10 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"checked":true}' http://localhost:3000/api/agent/habits/3/check
 ```
+
+Si une habitude active s'appelle « Deep work », sa coche et `day_journal.deep_work`
+sont synchronisés automatiquement par le serveur (dans les deux sens, pour le
+jour concerné).
 
 ### Historique
 
