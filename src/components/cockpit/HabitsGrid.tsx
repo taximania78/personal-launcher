@@ -1,6 +1,7 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { TileIcon } from '../ui/TileIcon'
+import { emitDeepWorkSync, onDeepWorkSync } from '@/lib/deep-work-sync'
 
 export type HabitRow = { id: number; name: string; icon: string | null }
 
@@ -14,10 +15,27 @@ export function HabitsGrid({ habits, days, today, initialChecks }: {
 }) {
   const [checks, setChecks] = useState(() => new Set(initialChecks))
   const [, startTransition] = useTransition()
+  const deepWorkHabit = habits.find(h => h.name.toLowerCase() === 'deep work')
+
+  useEffect(() => {
+    if (!deepWorkHabit) return
+    return onDeepWorkSync(detail => {
+      if (detail.source === 'grid') return
+      const key = `${deepWorkHabit.id}:${detail.day}`
+      setChecks(prev => {
+        const alreadyChecked = prev.has(key)
+        if (alreadyChecked === detail.checked) return prev
+        const next = new Set(prev)
+        if (detail.checked) next.add(key); else next.delete(key)
+        return next
+      })
+    })
+  }, [deepWorkHabit])
 
   function toggle(habitId: number, day: string) {
     const key = `${habitId}:${day}`
     const wasChecked = checks.has(key)
+    const checkedAfter = !wasChecked
     setChecks(prev => {
       const next = new Set(prev)
       if (wasChecked) next.delete(key); else next.add(key)
@@ -36,6 +54,8 @@ export function HabitsGrid({ habits, days, today, initialChecks }: {
           if (wasChecked) next.add(key); else next.delete(key)
           return next
         })
+      } else if (deepWorkHabit && habitId === deepWorkHabit.id) {
+        emitDeepWorkSync({ day, checked: checkedAfter, source: 'grid' })
       }
     })
   }

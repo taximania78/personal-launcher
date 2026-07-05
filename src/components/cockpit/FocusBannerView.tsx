@@ -1,16 +1,27 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Target } from 'lucide-react'
 import type { FocusBannerState } from './focus-banner-state'
+import { emitDeepWorkSync, onDeepWorkSync } from '@/lib/deep-work-sync'
 
 export function FocusBannerView({
-  state: initial, todoId,
+  state: initial, todoId, todayIso,
 }: {
   state: FocusBannerState
   todoId: number | null
+  todayIso: string
 }) {
   const [state, setState] = useState(initial)
   const [isPending, startTransition] = useTransition()
+
+  useEffect(() => {
+    return onDeepWorkSync(detail => {
+      if (detail.source === 'banner' || detail.day !== todayIso) return
+      setState(prev => prev.kind === 'unset'
+        ? { kind: 'unset', deepWork: detail.checked }
+        : { ...prev, deepWork: detail.checked })
+    })
+  }, [todayIso])
 
   function toggleDone() {
     if (isPending || state.kind === 'unset' || todoId === null) return
@@ -44,6 +55,7 @@ export function FocusBannerView({
         body: JSON.stringify({ deep_work: next }),
       })
       if (!res.ok) setState(previous)
+      else emitDeepWorkSync({ day: todayIso, checked: next, source: 'banner' })
     })
   }
 
