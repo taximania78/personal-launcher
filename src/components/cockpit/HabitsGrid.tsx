@@ -54,8 +54,19 @@ export function HabitsGrid({ habits, days, today, initialChecks }: {
           if (wasChecked) next.add(key); else next.delete(key)
           return next
         })
-      } else if (deepWorkHabit && habitId === deepWorkHabit.id) {
-        emitDeepWorkSync({ day, checked: checkedAfter, source: 'grid' })
+      } else {
+        const result = await res.json()
+        if (deepWorkHabit && habitId === deepWorkHabit.id) {
+          emitDeepWorkSync({ day, checked: result.checked, source: 'grid' })
+        }
+        // Recaler l'état local si le serveur a renvoyé quelque chose de différent
+        if (result.checked !== checkedAfter) {
+          setChecks(prev => {
+            const next = new Set(prev)
+            if (result.checked) next.add(key); else next.delete(key)
+            return next
+          })
+        }
       }
     })
   }

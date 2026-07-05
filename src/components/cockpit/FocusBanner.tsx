@@ -5,16 +5,17 @@ import { resolveFocusBannerState } from './focus-banner-state'
 import { FocusBannerView } from './FocusBannerView'
 
 export async function FocusBanner() {
+  const today = parisToday()
   try {
-    const [todo, journal] = await Promise.all([getFocusTodo(), getDayJournal(parisToday())])
+    const [todo, journal] = await Promise.all([getFocusTodo(), getDayJournal(today)])
     return (
       <FocusBannerView
         state={resolveFocusBannerState(todo, journal)}
         todoId={todo?.id ?? null}
-        todayIso={parisToday()}
+        todayIso={today}
       />
     )
   } catch {
-    return <FocusBannerView state={{ kind: 'unset', deepWork: false }} todoId={null} todayIso={parisToday()} />
+    return <FocusBannerView state={{ kind: 'unset', deepWork: false }} todoId={null} todayIso={today} />
   }
 }
