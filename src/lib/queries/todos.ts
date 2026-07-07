@@ -27,7 +27,6 @@ export async function listTodos(): Promise<TodoListItem[]> {
         OR (done = TRUE AND (updated_at AT TIME ZONE 'Europe/Paris')::date = $1::date)
       )
     ORDER BY overdue DESC, position ASC, created_at ASC
-    LIMIT 6
   `, [today])
   return r.rows
 }
@@ -40,7 +39,6 @@ export async function listTomorrowTodos(): Promise<Todo[]> {
       AND done = FALSE
       AND scheduled_for = $1::date
     ORDER BY position ASC, created_at ASC
-    LIMIT 6
   `, [parisTomorrow()])
   return r.rows
 }
