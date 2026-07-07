@@ -1,5 +1,6 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { splitActiveCompleted } from './todo-list-order'
 
 export type TodoRow = {
   id: number
@@ -346,6 +347,9 @@ export function TodoList({
 
   const overdue = todayTodos.filter(t => t.overdue)
   const todayOnly = todayTodos.filter(t => !t.overdue)
+  // Regroupe les terminées en bas, séparées des actives par un trait ; recalculé
+  // à chaque rendu → une tâche cochée saute dynamiquement dans le bon groupe.
+  const { active: todayActive, completed: todayDone } = splitActiveCompleted(todayOnly)
   const completed = todayTodos.filter(t => t.done).length
   const upcomingCount = upcoming.reduce((n, g) => n + g.todos.length, 0)
 
@@ -384,11 +388,15 @@ export function TodoList({
             <div className="text-xs font-medium text-[var(--color-text-secondary)] mb-1.5">Aujourd&apos;hui</div>
           )}
           <ul className="flex flex-col gap-2.5">
-            {rows(todayOnly, { withToggle: true })}
+            {rows(todayActive, { withToggle: true })}
             <AddRow
               value={newText} dateValue={newDate} minDate={todayIso}
               onChange={setNewText} onDateChange={setNewDate} onAdd={addTodo}
             />
+            {todayDone.length > 0 && (
+              <li aria-hidden="true" className="border-t border-[var(--color-border-secondary)] mt-0.5" />
+            )}
+            {rows(todayDone, { withToggle: true })}
           </ul>
         </>
       ) : (
