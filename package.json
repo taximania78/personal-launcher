@@ -15,7 +15,7 @@
     "migrate:create": "node-pg-migrate -m db/migrations -j sql create"
   },
   "dependencies": {
-    "lucide-react": "^1.21.0",
+    "lucide-react": "^1.23.0",
     "next": "16.2.9",
     "pg": "^8.22.0",
     "react": "19.2.7",
