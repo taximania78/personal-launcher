@@ -1,4 +1,5 @@
 import { readerPool, writerPool, withWriterTx } from '../db'
+import { parisToday } from '../week'
 
 export type Habit = {
   id: number
@@ -151,4 +152,31 @@ export async function setHabitCheck(
   }
   await writerPool.query(`DELETE FROM habit_checks WHERE habit_id = $1 AND day = $2`, [habitId, day])
   return { checked: false }
+}
+
+export type HabitCheckCount = { habit_id: number; name: string; checks: number }
+
+export async function getHabitCheckCounts(days: number): Promise<HabitCheckCount[]> {
+  const r = await readerPool.query<HabitCheckCount>(`
+    SELECT h.id::int AS habit_id, h.name, COUNT(c.day)::int AS checks
+    FROM habits h
+    LEFT JOIN habit_checks c
+      ON c.habit_id = h.id AND c.day > $1::date - $2::int
+    WHERE h.active = TRUE
+    GROUP BY h.id, h.name, h.position
+    ORDER BY h.position ASC
+  `, [parisToday(), days])
+  return r.rows
+}
+
+/** L'habitude « Deep work » active (insensible à la casse), s'il y en a une. */
+export async function findDeepWorkHabit(): Promise<Habit | null> {
+  const r = await readerPool.query<Habit>(`
+    SELECT ${HABIT_COLS}
+    FROM habits
+    WHERE active = TRUE AND lower(name) = 'deep work'
+    ORDER BY position ASC
+    LIMIT 1
+  `)
+  return r.rows[0] ?? null
 }

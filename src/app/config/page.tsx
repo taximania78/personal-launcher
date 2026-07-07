@@ -77,7 +77,7 @@ export default async function ConfigPage() {
 
           <section>
             <h2 className="text-lg font-medium mb-3">Paramètres généraux</h2>
-            <GeneralSettings initial={{ whoogle_url: config?.whoogle_url ?? '', focus_default: config?.focus_default ?? '' }} />
+            <GeneralSettings initial={{ whoogle_url: config?.whoogle_url ?? '' }} />
           </section>
 
           <section className="mt-8">

@@ -70,26 +70,40 @@ describe('PATCH /api/todo/:id', () => {
     expect(res.status).toBe(404)
   })
 
-  it('atomically switches is_focus', async () => {
-    const a = await (await POST(new Request('http://x/api/todo', {
+  it('is_focus est ignoré par POST et refusé seul par PATCH (focus agent-only)', async () => {
+    const created = await (await POST(new Request('http://x/api/todo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'a', is_focus: true }),
+      body: JSON.stringify({ text: 'pas un focus', is_focus: true }),
     }))).json()
-    const b = await (await POST(new Request('http://x/api/todo', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'b' }),
-    }))).json()
+    const r = await testPool.query('SELECT is_focus FROM todos WHERE id = $1', [created.id])
+    expect(r.rows[0].is_focus).toBe(false)
+
     const res = await PATCH(
-      new Request(`http://x/api/todo/${b.id}`, {
+      new Request(`http://x/api/todo/${created.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_focus: true }),
       }),
-      { params: Promise.resolve({ id: String(b.id) }) },
+      { params: Promise.resolve({ id: String(created.id) }) },
+    )
+    expect(res.status).toBe(400)  // aucun champ connu → refine échoue
+  })
+
+  it('PATCH { scheduled_for } demain : reporte et incrémente le compteur', async () => {
+    const { parisTomorrow } = await import('@/lib/week')
+    const created = await (await POST(new Request('http://x/api/todo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'à reporter' }),
+    }))).json()
+    const res = await PATCH(
+      new Request(`http://x/api/todo/${created.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduled_for: parisTomorrow() }),
+      }),
+      { params: Promise.resolve({ id: String(created.id) }) },
     )
     expect(res.status).toBe(200)
-    const r = await testPool.query('SELECT id, is_focus FROM todos ORDER BY id')
-    expect(r.rows.find(x => x.id === a.id).is_focus).toBe(false)
-    expect(r.rows.find(x => x.id === b.id).is_focus).toBe(true)
+    const body = await res.json()
+    expect(body.postponed_count).toBe(1)
   })
 })
 
@@ -111,6 +125,18 @@ describe('POST /api/todo — when=tomorrow', () => {
 
     const tomorrow = await listTomorrowTodos()
     expect(tomorrow.map(t => t.id)).toContain(body.id)
+  })
+
+  it('scheduled_for libre prime sur when', async () => {
+    const res = await POST(new Request('http://localhost/api/todo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Plus tard', when: 'today', scheduled_for: '2999-01-01' }),
+    }))
+    const body = await res.json()
+    const r = await testPool.query(
+      `SELECT scheduled_for::text FROM todos WHERE id = $1`, [body.id])
+    expect(r.rows[0].scheduled_for).toBe('2999-01-01')
   })
 
   it('par défaut (when absent) range la tâche aujourd’hui', async () => {

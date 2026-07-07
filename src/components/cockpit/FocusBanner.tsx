@@ -1,32 +1,21 @@
-import { Target } from 'lucide-react'
 import { getFocusTodo } from '@/lib/queries/todos'
-import { getAppConfig } from '@/lib/queries/config'
+import { getDayJournal } from '@/lib/queries/journal'
+import { parisToday } from '@/lib/week'
+import { resolveFocusBannerState } from './focus-banner-state'
+import { FocusBannerView } from './FocusBannerView'
 
 export async function FocusBanner() {
+  const today = parisToday()
   try {
-    const [todo, config] = await Promise.all([getFocusTodo(), getAppConfig()])
-    const focus = todo?.text ?? config?.focus_default ?? '—'
-    return <Banner focus={focus} />
+    const [todo, journal] = await Promise.all([getFocusTodo(), getDayJournal(today)])
+    return (
+      <FocusBannerView
+        state={resolveFocusBannerState(todo, journal)}
+        todoId={todo?.id ?? null}
+        todayIso={today}
+      />
+    )
   } catch {
-    return <Banner focus="—" />
+    return <FocusBannerView state={{ kind: 'unset', deepWork: false }} todoId={null} todayIso={today} />
   }
-}
-
-function Banner({ focus }: { focus: string }) {
-  return (
-    <div className="surface-glass-info rounded-[var(--radius-lg)] py-4 px-5 mb-5 flex items-center gap-3">
-      <span aria-hidden className="text-[var(--color-text-info)]">
-        <Target size={20} />
-      </span>
-      <div>
-        <div className="text-xs text-[var(--color-text-primary)] uppercase tracking-wide">Focus unique du jour</div>
-        <div
-          className="text-lg text-[var(--color-text-primary)] italic"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {focus}
-        </div>
-      </div>
-    </div>
-  )
 }

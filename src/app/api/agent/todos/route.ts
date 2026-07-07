@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAgent } from '@/lib/agent-auth'
 import { createTodo } from '@/lib/queries/todos'
-import { parisTomorrow } from '@/lib/week'
+import { parisToday, parisTomorrow } from '@/lib/week'
 import { pushTodoSync } from '@/lib/n8n'
 
 const createSchema = z.object({
   text: z.string().min(1).max(280),
   when: z.enum(['today', 'tomorrow']).optional().default('today'),
+  scheduled_for: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 export async function POST(req: Request) {
@@ -20,9 +21,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: z.treeifyError(parsed.error) }, { status: 400 })
   }
   try {
-    const todo = parsed.data.when === 'tomorrow'
-      ? await createTodo(parsed.data.text, false, parisTomorrow())
-      : await createTodo(parsed.data.text, false)
+    const date = parsed.data.scheduled_for
+      ?? (parsed.data.when === 'tomorrow' ? parisTomorrow() : parisToday())
+    const todo = await createTodo(parsed.data.text, false, date)
     pushTodoSync('created', todo)
     return NextResponse.json(todo)
   } catch (err) {

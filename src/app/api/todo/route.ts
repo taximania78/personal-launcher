@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createTodo, createFocusTodo } from '@/lib/queries/todos'
-import { parisTomorrow } from '@/lib/week'
+import { createTodo } from '@/lib/queries/todos'
+import { parisToday, parisTomorrow } from '@/lib/week'
 import { pushTodoSync } from '@/lib/n8n'
 
+// Le focus est agent-only (spec §2.2) : is_focus n'existe plus côté routes UI.
 const createSchema = z.object({
   text: z.string().min(1).max(280),
-  is_focus: z.boolean().optional().default(false),
   when: z.enum(['today', 'tomorrow']).optional().default('today'),
+  scheduled_for: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 export async function POST(req: Request) {
@@ -17,14 +18,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: z.treeifyError(parsed.error) }, { status: 400 })
   }
   try {
-    let todo
-    if (parsed.data.is_focus) {
-      todo = await createFocusTodo(parsed.data.text)
-    } else if (parsed.data.when === 'tomorrow') {
-      todo = await createTodo(parsed.data.text, false, parisTomorrow())
-    } else {
-      todo = await createTodo(parsed.data.text, false)
-    }
+    const date = parsed.data.scheduled_for
+      ?? (parsed.data.when === 'tomorrow' ? parisTomorrow() : parisToday())
+    const todo = await createTodo(parsed.data.text, false, date)
     pushTodoSync('created', todo)
     return NextResponse.json(todo)
   } catch (err) {

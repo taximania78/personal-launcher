@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAgent } from '@/lib/agent-auth'
-import { setTodoDone, updateTodoText, deleteTodo, type Todo } from '@/lib/queries/todos'
+import { setTodoDone, updateTodoText, deleteTodo, rescheduleTodo, type Todo } from '@/lib/queries/todos'
 import { pushTodoSync } from '@/lib/n8n'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -9,9 +9,11 @@ type Ctx = { params: Promise<{ id: string }> }
 const patchSchema = z.object({
   done: z.boolean().optional(),
   text: z.string().min(1).max(280).optional(),
-}).refine(d => d.done !== undefined || d.text !== undefined, {
-  message: 'au moins un champ requis (done, text)',
-})
+  scheduled_for: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+}).refine(
+  (d) => d.done !== undefined || d.text !== undefined || d.scheduled_for !== undefined,
+  { message: 'au moins un champ requis (done, text, scheduled_for)' },
+)
 
 export async function PATCH(req: Request, ctx: Ctx) {
   const denied = await requireAgent(req)
@@ -28,6 +30,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
   try {
     let result: Todo | null = null
+    if (parsed.data.scheduled_for !== undefined) result = await rescheduleTodo(id, parsed.data.scheduled_for)
     if (parsed.data.done !== undefined) result = await setTodoDone(id, parsed.data.done)
     if (parsed.data.text !== undefined) result = await updateTodoText(id, parsed.data.text)
     pushTodoSync('updated', result!)

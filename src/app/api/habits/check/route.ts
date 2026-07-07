@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { toggleCheck } from '@/lib/queries/habits'
+import { findDeepWorkHabit, toggleCheck } from '@/lib/queries/habits'
+import { upsertDayJournal } from '@/lib/queries/journal'
 import { parisToday, parisWeekDays } from '@/lib/week'
 
 const checkSchema = z.object({
@@ -23,6 +24,10 @@ export async function POST(req: Request) {
 
   try {
     const result = await toggleCheck(habit_id, day)
+    // Sync bidirectionnelle : cocher/décocher l'habitude « Deep work » met à
+    // jour day_journal.deep_work du même jour (rétro-coche = rétro-journal).
+    const habit = await findDeepWorkHabit()
+    if (habit && habit.id === habit_id) await upsertDayJournal(day, { deep_work: result.checked })
     return NextResponse.json(result)
   } catch (err) {
     // 23503 = violation FK → l'habitude n'existe pas

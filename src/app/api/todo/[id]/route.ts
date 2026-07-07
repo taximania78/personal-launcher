@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import {
-  toggleTodo, updateTodoText, setFocus, clearFocus, deleteTodo,
+  toggleTodo, updateTodoText, rescheduleTodo, deleteTodo,
   type Todo,
 } from '@/lib/queries/todos'
 import { withWriterTx } from '@/lib/db'
@@ -12,9 +12,13 @@ type Ctx = { params: Promise<{ id: string }> }
 const patchSchema = z.object({
   text: z.string().min(1).max(280).optional(),
   done: z.boolean().optional(),
-  is_focus: z.boolean().optional(),
+  scheduled_for: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   position: z.number().int().nonnegative().optional(),
-})
+}).refine(
+  (d) => d.text !== undefined || d.done !== undefined
+      || d.scheduled_for !== undefined || d.position !== undefined,
+  { message: 'au moins un champ requis (text, done, scheduled_for, position)' },
+)
 
 export async function PATCH(req: Request, ctx: Ctx) {
   const { id: idStr } = await ctx.params
@@ -25,27 +29,19 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const parsed = patchSchema.safeParse(json)
   if (!parsed.success) return NextResponse.json({ error: z.treeifyError(parsed.error) }, { status: 400 })
 
-  // Determine action: 'toggled' if only `done` changed, else 'updated'
+  // 'toggled' si seul `done` change, sinon 'updated' (parité webhook existante)
   const keys = Object.keys(parsed.data)
   const action: TodoAction = keys.length === 1 && keys[0] === 'done' ? 'toggled' : 'updated'
 
   try {
     let result: Todo | null = null
 
-    if (parsed.data.is_focus === true) {
-      result = await setFocus(id)
-    } else if (parsed.data.is_focus === false) {
-      await clearFocus()
-      result = await withWriterTx(async (c) => {
-        const r = await c.query<Todo>(`SELECT id, text, done, position, is_focus, created_at, updated_at FROM todos WHERE id = $1`, [id])
-        if (r.rowCount === 0) throw new Error('not_found')
-        return r.rows[0]
-      })
+    if (parsed.data.scheduled_for !== undefined) {
+      result = await rescheduleTodo(id, parsed.data.scheduled_for)
     }
 
     if (parsed.data.done !== undefined) {
-      // Use toggleTodo (idempotent NOT done); the client-supplied boolean
-      // is informational only — optimistic UI handles state tracking.
+      // toggleTodo (idempotence gérée par l'UI optimiste), comportement existant conservé
       result = await toggleTodo(id)
     }
 
@@ -58,22 +54,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
         const r = await c.query<Todo>(`
           UPDATE todos SET position = $2, updated_at = NOW()
           WHERE id = $1
-          RETURNING id, text, done, position, is_focus, created_at, updated_at
+          RETURNING id, text, done, position, is_focus, created_at, updated_at, postponed_count
         `, [id, parsed.data.position])
         if (r.rowCount === 0) throw new Error('not_found')
         return r.rows[0]
       })
     }
 
-    if (!result) {
-      result = await withWriterTx(async (c) => {
-        const r = await c.query<Todo>(`SELECT id, text, done, position, is_focus, created_at, updated_at FROM todos WHERE id = $1`, [id])
-        if (r.rowCount === 0) throw new Error('not_found')
-        return r.rows[0]
-      })
-    }
-
-    pushTodoSync(action, result)
+    pushTodoSync(action, result!)
     return NextResponse.json(result)
   } catch (err) {
     if ((err as Error).message?.includes('not_found') || (err as Error).message?.includes('not found')) {

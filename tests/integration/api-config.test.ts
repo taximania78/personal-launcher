@@ -20,10 +20,11 @@ describe('PATCH /api/config', () => {
     expect(r.body.whoogle_url).toBe('https://whoogle.example.com')
   })
 
-  it('updates focus_default', async () => {
-    const r = await patch({ focus_default: 'Aucun focus' })
+  it('ignore focus_default (retiré) sans erreur', async () => {
+    const r = await patch({ focus_default: 'fantôme', whoogle_url: 'https://w.example.com' })
     expect(r.status).toBe(200)
-    expect(r.body.focus_default).toBe('Aucun focus')
+    expect(r.body.whoogle_url).toBe('https://w.example.com')
+    expect(r.body.focus_default).toBeUndefined()
   })
 
   it('treats empty string as null', async () => {

@@ -5,7 +5,6 @@ import { isSafeHref, SAFE_HREF_MESSAGE } from '@/lib/validation/url'
 
 const patchSchema = z.object({
   whoogle_url: z.string().refine(isSafeHref, SAFE_HREF_MESSAGE).nullable().optional(),
-  focus_default: z.string().nullable().optional(),
 })
 
 export async function PATCH(req: Request) {
