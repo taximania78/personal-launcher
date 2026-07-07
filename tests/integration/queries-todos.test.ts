@@ -199,6 +199,28 @@ describe('listTodos — portée du jour', () => {
   })
 })
 
+describe('régression : une tâche ajoutée ne disparaît pas au rechargement', () => {
+  beforeEach(() => truncateAll())
+
+  // Bug : listTodos plafonnait à LIMIT 6. Comme une nouvelle tâche prend
+  // position = MAX+1 (donc triée en dernier), dès la 7e du jour elle passait
+  // sous le plafond → invisible au reload alors que persistée en base.
+  it('listTodos affiche toutes les tâches du jour, même au-delà de 6', async () => {
+    for (let i = 1; i <= 8; i++) await createTodo(`Tâche ${i}`, false)
+    const list = await listTodos()
+    expect(list).toHaveLength(8)
+    // La dernière ajoutée (position la plus haute) doit rester visible.
+    expect(list.map(t => t.text)).toContain('Tâche 8')
+  })
+
+  it('listTomorrowTodos affiche toutes les tâches de demain, même au-delà de 6', async () => {
+    for (let i = 1; i <= 8; i++) await createTodo(`Demain ${i}`, false, parisTomorrow())
+    const list = await listTomorrowTodos()
+    expect(list).toHaveLength(8)
+    expect(list.map(t => t.text)).toContain('Demain 8')
+  })
+})
+
 describe('setTodoDone', () => {
   beforeEach(() => truncateAll())
 
