@@ -49,7 +49,7 @@ Droits du rôle (rappel) : INSERT/UPDATE (+DELETE selon table) sur `meteo`, `cal
 | Workflow | Fréquence | Table (clé upsert) | Badge stale après | Erreur après |
 |---|---|---|---|---|
 | `meteo` | 30 min | `meteo` (id=1) | 1 h | 24 h |
-| `caldav-agenda` | 5 min | `calendar` (uid) | 30 min | 24 h |
+| `caldav-agenda` | 15 min | `calendar` (uid) | 30 min | 24 h |
 | `notion-applications` | 10 min | `applications` (notion_id) | 1 h | 24 h |
 | `uptime-services` | 5 min | `services` (name) | 15 min | 24 h |
 | `github-commits` | 15 min | `signals` (id=1) | 2 h | 24 h |
@@ -117,12 +117,12 @@ Query Parameters : `{{ [$json.temperature_c, $json.icon, $json.condition] }}`
 
 n8n n'a pas de node CalDAV natif. **Approche retenue : le node communautaire CalDAV** (Settings → Community Nodes), qui interroge directement le serveur CalDAV (ici Infomaniak, `sync.infomaniak.com` ; compatible Nextcloud, iCloud, etc.). Il remplace l'ancien export ICS : le node renvoie déjà les VEVENT en JSON, plus besoin de parser le brut.
 
-**5 nodes : Schedule (5 min) → CalDAV (Get Events in Range) → Code (normalise) → Postgres (upsert) → Postgres (purge).**
+**9 nodes : Schedule (15 min) → 3× CalDAV *Get Events in Range* (un node par calendrier : Perso / Maison / Pro) → Merge (3 entrées) → Code (normalise) → Postgres (upsert) → Code (collecte des uid) → Postgres (purge « ce qui n'est plus dans le fetch »).**
 
 ### Credential & node CalDAV
 
 - Credential : **Basic Auth** — mot de passe d'application (pas le mot de passe principal du compte).
-- Operation : **Get Events in Range** ; sélectionne le ou les calendriers utiles à l'agenda (Pro / Perso / Maison) et **exclus un éventuel « Jours fériés »**, sinon l'AgendaCard se remplit de fêtes. (Le node sait aussi lister les calendriers via *Get Calendars*.)
+- Operation : **Get Events in Range**. Le node communautaire ne lit **qu'un calendrier à la fois** → **un node par calendrier** utile (**Perso / Maison / Pro**), réunis par un node **Merge** (3 entrées) avant la normalisation. **Exclus un éventuel « Jours fériés »**, sinon l'AgendaCard se remplit de fêtes. (Le node sait lister les calendriers via *Get Calendars*.)
 - Fenêtre — c'est elle qui pilote ce qui remonte :
   - **Start** : `{{ $now.startOf('day').toISO() }}` — 00:00 aujourd'hui (fuseau du workflow ; vérifie `Europe/Paris` dans ⚙). Démarrer au début du jour, et non « maintenant », garde les événements du jour déjà commencés et les journées entières d'aujourd'hui.
   - **End** : `{{ $now.plus({ days: 30 }).toISO() }}` — horizon 30 j, large pour les 3 événements de l'AgendaCard et le countdown d'entretien.
@@ -198,17 +198,31 @@ ON CONFLICT (uid) DO UPDATE SET
   fetched_at   = EXCLUDED.fetched_at;
 ```
 
-Query Parameters (node Postgres v2.6+ : **une expression renvoyant un tableau**, dans l'ordre des `$n`) : `{{ [$json.uid, $json.title, $json.starts_at, $json.ends_at, $json.location, $json.is_interview] }}`
+Query Parameters (node Postgres v2.6+ : **une expression renvoyant un tableau**, dans l'ordre des `$n`) : `{{ [$json.uid, $json.title, $json.starts_at, $json.ends_at, $json.location, $json.is_interview, $json.all_day] }}`
 
-### Node Postgres — purge (Settings → Execute Once = ON)
+### Cleanup (événements supprimés / annulés dans l'agenda)
 
-```sql
-DELETE FROM calendar WHERE ends_at < NOW() - INTERVAL '1 day';
+Un simple upsert ne retire jamais une ligne : un événement supprimé ou annulé côté agenda resterait un **fantôme** en base — visible dans l'AgendaCard jusqu'à son heure de fin d'origine (le filtre applicatif est `ends_at >= NOW()`), et jamais nettoyé. On applique donc le même cleanup que `notion-applications` (§4) : **supprime ce qui n'était pas dans le dernier fetch**.
+
+Après l'upsert : node **Code** qui agrège les `uid` réellement écrits par la normalisation, puis node **Postgres**.
+
+```js
+// Code — collecte des uid du batch courant (ceux produits par le node de normalisation).
+// Garde-fou : jamais de DELETE sur un batch vide.
+const uids = $('Code in JavaScript').all().map(({ json }) => json.uid).filter(Boolean);
+if (uids.length === 0) return [];
+return [{ json: { uids } }];
 ```
 
-**Fraîcheur / limitation v1 acceptée** : l'upsert met à jour et insère, la purge n'enlève que le passé. Un événement *futur* annulé dans l'agenda reste un fantôme jusqu'à `ends_at + 1j`, puis disparaît. Un cleanup « supprime ce qui n'est plus dans le fetch » (calqué sur `notion-applications`, §4) est possible mais volontairement écarté en v1 : il ajoute un DELETE toutes les 5 min pour un gain rare, avec un risque de wipe si le garde-fou « batch vide » saute.
+```sql
+DELETE FROM calendar WHERE uid <> ALL($1::text[]);
+```
 
-**Test** : Execute Workflow → `SELECT uid, title, starts_at, is_interview FROM calendar ORDER BY starts_at;` → l'AgendaCard affiche les 3 prochains événements.
+Query Parameters : `{{ [$json.uids] }}`
+
+> **Garde-fous anti-wipe (3 couches)** : (1) si les 3 calendriers renvoient un fetch vide, la normalisation sort `[]` et la chaîne s'arrête avant le DELETE ; (2) le node Code renvoie `[]` quand `uids` est vide — **indispensable**, car `uid <> ALL('{}'::text[])` est vrai pour **toutes** les lignes et viderait la table ; (3) un calendrier CalDAV en **erreur** dure stoppe le workflow avant le Merge. **Risque résiduel accepté** (identique à `notion-applications`) : si **un seul** des 3 calendriers renvoie vide *sans* lever d'erreur (souci transitoire), ses événements sont supprimés puis **réinsérés au tick suivant** — impact faible, auto-réparé.
+
+**Test** : Execute Workflow → `SELECT uid, title, starts_at, is_interview, all_day FROM calendar ORDER BY starts_at;` → l'AgendaCard affiche les 3 prochains événements. Puis **supprime un événement** dans l'agenda et relance : sa ligne disparaît de la table (purge « pas dans le fetch »).
 
 ---
 
