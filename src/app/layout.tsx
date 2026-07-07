@@ -18,8 +18,8 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: 'Homepage',
-  description: 'Personal launcher + cockpit',
+  title: { default: 'Accueil', template: '%s · Accueil' },
+  description: 'Launcher personnel + cockpit',
 }
 
 // Le fond et le contenu dépendent de la DB : on rend à chaque requête.
