@@ -1,0 +1,43 @@
+# Configuration gitleaks — https://github.com/gitleaks/gitleaks
+#
+# Usage :
+#   gitleaks git --log-opts="--all"   # tout l'historique, toutes les refs
+#   gitleaks protect --staged         # avant commit (hook pre-commit)
+#
+# GitHub fait déjà tourner secret scanning + push protection sur ce dépôt.
+# Ce fichier sert au scan local et garde le résultat à zéro bruit : sans
+# allowlist, les valeurs factices de `.env.example` et les placeholders de la
+# doc remonteraient comme faux positifs à chaque exécution, et un rapport
+# bruyant finit par ne plus être lu.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders et valeurs factices — jamais de vrais secrets"
+
+paths = [
+  # Documentés comme exemples, contiennent uniquement `change_me` et des URL example.com
+  '''^\.env\.example$''',
+  '''^\.env\.local\.example$''',
+  # Mots de passe Postgres jetables du service CI et du compose de dev
+  '''^\.github/workflows/ci\.yml$''',
+  '''^docker-compose\.dev\.yml$''',
+  # Le lockfile ne contient que des hashes d'intégrité npm
+  '''^pnpm-lock\.yaml$''',
+  # Artefacts locaux gitignorés : `gitleaks dir` les scanne quand même, et les
+  # manifestes Next.js contiennent des hashes que la règle generic-api-key
+  # confond avec des clés. Jamais commités, donc jamais publiés.
+  '''^\.next/''',
+  '''^node_modules/''',
+  '''^data/''',
+]
+
+regexes = [
+  '''change_me''',
+  '''placeholder\.invalid''',
+  '''n8n\.example\.com''',
+  # Identifiants du Postgres de test, en dur dans la CI et le compose de dev
+  '''postgres://(postgres|app_reader|app_writer):(test|devpassword)@''',
+  '''ci_(token|reader|writer|n8n)''',
+]
