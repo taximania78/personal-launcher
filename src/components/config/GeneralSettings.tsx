@@ -3,6 +3,7 @@ import { useState, useTransition } from 'react'
 
 type Settings = {
   whoogle_url: string
+  confetti_enabled: boolean
 }
 
 export function GeneralSettings({ initial }: { initial: Settings }) {
@@ -16,7 +17,10 @@ export function GeneralSettings({ initial }: { initial: Settings }) {
       const res = await fetch('/api/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ whoogle_url: values.whoogle_url }),
+        body: JSON.stringify({
+          whoogle_url: values.whoogle_url,
+          confetti_enabled: values.confetti_enabled,
+        }),
       })
       setSaved(res.ok ? 'ok' : 'error')
       if (res.ok) setTimeout(() => setSaved('idle'), 1500)
@@ -35,6 +39,16 @@ export function GeneralSettings({ initial }: { initial: Settings }) {
             placeholder="https://whoogle.example.com (vide → Google)"
             className="bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-[var(--radius-md)] px-3 py-2 text-sm outline-none focus:border-[var(--color-text-secondary)]"
           />
+        </label>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={values.confetti_enabled}
+            onChange={e => setValues(v => ({ ...v, confetti_enabled: e.target.checked }))}
+            className="h-4 w-4 accent-[var(--color-bg-info)]"
+          />
+          <span className="text-sm">Confettis quand toutes les habitudes du jour sont cochées</span>
         </label>
 
         <div className="flex gap-3 items-center">

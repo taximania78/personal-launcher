@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { TileIcon } from '../ui/TileIcon'
 import { emitDeepWorkSync, onDeepWorkSync } from '@/lib/deep-work-sync'
 
@@ -7,35 +7,64 @@ export type HabitRow = { id: number; name: string; icon: string | null }
 
 const DAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
-export function HabitsGrid({ habits, days, today, initialChecks }: {
+/** Toutes les habitudes (actives) ont-elles leur coche pour ce jour ? */
+function allCheckedForDay(habits: HabitRow[], checks: Set<string>, day: string) {
+  return habits.length > 0 && habits.every(h => checks.has(`${h.id}:${day}`))
+}
+
+/** Lance les confettis (sauf si l'utilisateur préfère moins de mouvement). */
+async function celebrate() {
+  if (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ) return
+  const confetti = (await import('canvas-confetti')).default
+  confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } })
+}
+
+export function HabitsGrid({ habits, days, today, initialChecks, confettiEnabled }: {
   habits: HabitRow[]
   days: string[]           // 7 dates ISO, lundi → dimanche
   today: string            // date ISO du jour (Europe/Paris)
   initialChecks: string[]  // clés "habitId:day"
+  confettiEnabled: boolean // confettis à la complétion du jour
 }) {
   const [checks, setChecks] = useState(() => new Set(initialChecks))
   const [, startTransition] = useTransition()
   const deepWorkHabit = habits.find(h => h.name.toLowerCase() === 'deep work')
+
+  // Miroir de `checks` pour lire l'état frais dans le handler deep-work (dont le
+  // closure d'effet est figé), sans re-souscrire à chaque coche.
+  const checksRef = useRef(checks)
+  useEffect(() => { checksRef.current = checks }, [checks])
 
   useEffect(() => {
     if (!deepWorkHabit) return
     return onDeepWorkSync(detail => {
       if (detail.source === 'grid') return
       const key = `${deepWorkHabit.id}:${detail.day}`
-      setChecks(prev => {
-        const alreadyChecked = prev.has(key)
-        if (alreadyChecked === detail.checked) return prev
-        const next = new Set(prev)
-        if (detail.checked) next.add(key); else next.delete(key)
-        return next
-      })
+      const prev = checksRef.current
+      if (prev.has(key) === detail.checked) return
+      const next = new Set(prev)
+      if (detail.checked) next.add(key); else next.delete(key)
+      setChecks(next)
+      // Deep Work complété depuis la bannière (hors grille) : confettis si c'est
+      // la dernière habitude du jour. Hors du updater → pas de double-fire.
+      if (
+        confettiEnabled && detail.checked && detail.day === today &&
+        allCheckedForDay(habits, next, today)
+      ) celebrate()
     })
-  }, [deepWorkHabit])
+  }, [deepWorkHabit, confettiEnabled, habits, today])
 
   function toggle(habitId: number, day: string) {
     const key = `${habitId}:${day}`
     const wasChecked = checks.has(key)
     const checkedAfter = !wasChecked
+    // Ce clic complète-t-il toutes les habitudes du jour ? (sur l'état d'avant toggle)
+    const completesToday =
+      confettiEnabled && day === today && checkedAfter &&
+      allCheckedForDay(habits, new Set(checks).add(`${habitId}:${today}`), today)
     setChecks(prev => {
       const next = new Set(prev)
       if (wasChecked) next.delete(key); else next.add(key)
@@ -67,6 +96,8 @@ export function HabitsGrid({ habits, days, today, initialChecks }: {
             return next
           })
         }
+        // Dernier clic qui complète le jour (confirmé serveur) → confettis.
+        if (completesToday && result.checked) celebrate()
       }
     })
   }
