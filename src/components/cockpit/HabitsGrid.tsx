@@ -12,17 +12,43 @@ function allCheckedForDay(habits: HabitRow[], checks: Set<string>, day: string) 
   return habits.length > 0 && habits.every(h => checks.has(`${h.id}:${day}`))
 }
 
+// Palette tirée des accents sémantiques de l'app (info bleu = la coche d'habitude,
+// success vert = accompli, warning orange ≈ branding papaya, danger corail) plutôt
+// qu'un arc-en-ciel générique → confettis cohérents avec la charte, lisibles en
+// thème clair comme sombre.
+const CONFETTI_COLORS = ['#4C86F0', '#35C08A', '#FF9F45', '#F26D6D']
+
 // Cannon réutilisé, SANS Web Worker : le worker par défaut de canvas-confetti est
 // créé depuis un blob: que la CSP de l'app bloque (next.config.ts n'a pas de
-// worker-src → fallback sur script-src, sans blob:). Le rendu main-thread suffit
-// pour un effet ponctuel. disableForReducedMotion gère l'accessibilité côté lib.
+// worker-src → fallback sur script-src, sans blob:). Rendu main-thread, suffisant
+// pour un effet ponctuel.
 let confettiCannon: import('canvas-confetti').CreateTypes | null = null
-async function celebrate() {
+async function getConfettiCannon() {
   if (!confettiCannon) {
     const { default: confetti } = await import('canvas-confetti')
     confettiCannon = confetti.create(undefined, { useWorker: false, resize: true })
   }
-  confettiCannon({ particleCount: 120, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true })
+  return confettiCannon
+}
+
+async function celebrate() {
+  const cannon = await getConfettiCannon()
+  // Éclatement « réaliste » multi-couches (recette canvas-confetti) : plusieurs
+  // salves aux spread / vélocité / scalar variés pour un rendu naturel et premium
+  // plutôt qu'une salve unique et plate. disableForReducedMotion géré côté lib.
+  const burst = (ratio: number, opts: import('canvas-confetti').Options) =>
+    cannon({
+      origin: { y: 0.7 },
+      colors: CONFETTI_COLORS,
+      disableForReducedMotion: true,
+      ...opts,
+      particleCount: Math.floor(160 * ratio),
+    })
+  burst(0.25, { spread: 26, startVelocity: 55 })
+  burst(0.2, { spread: 60 })
+  burst(0.35, { spread: 100, decay: 0.91, scalar: 0.9 })
+  burst(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 })
+  burst(0.1, { spread: 120, startVelocity: 45 })
 }
 
 export function HabitsGrid({ habits, days, today, initialChecks, confettiEnabled }: {
