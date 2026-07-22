@@ -12,14 +12,17 @@ function allCheckedForDay(habits: HabitRow[], checks: Set<string>, day: string) 
   return habits.length > 0 && habits.every(h => checks.has(`${h.id}:${day}`))
 }
 
-/** Lance les confettis (sauf si l'utilisateur préfère moins de mouvement). */
+// Cannon réutilisé, SANS Web Worker : le worker par défaut de canvas-confetti est
+// créé depuis un blob: que la CSP de l'app bloque (next.config.ts n'a pas de
+// worker-src → fallback sur script-src, sans blob:). Le rendu main-thread suffit
+// pour un effet ponctuel. disableForReducedMotion gère l'accessibilité côté lib.
+let confettiCannon: import('canvas-confetti').CreateTypes | null = null
 async function celebrate() {
-  if (
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  ) return
-  const confetti = (await import('canvas-confetti')).default
-  confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } })
+  if (!confettiCannon) {
+    const { default: confetti } = await import('canvas-confetti')
+    confettiCannon = confetti.create(undefined, { useWorker: false, resize: true })
+  }
+  confettiCannon({ particleCount: 120, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true })
 }
 
 export function HabitsGrid({ habits, days, today, initialChecks, confettiEnabled }: {
