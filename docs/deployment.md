@@ -6,7 +6,7 @@ existante. Le front est exposé sur le **LAN uniquement**, via le port hôte
 utilise `pnpm dev:up` (voir `README.md` → *Quickstart (dev)*).
 
 > ⚠️ Le chemin prod **ne tourne pas sur une machine de dev**. La stack
-> `docker-compose.yml` attend le réseau Docker externe `shared-n8n` (absent d'un
+> `docker-compose.yml` attend le réseau Docker externe `integration-n8n-launcher` (absent d'un
 > laptop) et expose le front sur le port hôte `8081`. En local, toujours
 > `pnpm dev:up`.
 
@@ -28,20 +28,20 @@ Deux conteneurs (app + postgres) dans ce compose, plus la stack n8n externe.
                       │ app  (image launcher:latest, Next.js :3000) │
                       │  ENTRYPOINT: migrations → node server.js    │
                       └───────────────┬────────────────────────────┘
-                       launcher-internal│ (réseau interne, bridge)
+                            data-launcher│ (réseau interne, bridge)
                       ┌───────────────▼────────────────────────────┐
                       │ postgres  (postgres:18, volume persistant)  │
                       └──────┬───────────────────────┬──────────────┘
-            launcher-internal│         shared-n8n     │ (réseau externe)
+                 data-launcher│ integration-n8n-launcher │ (réseau externe interne)
                              │                        │
                      app (reader/writer)      n8n (stack externe, n8n_writer)
 ```
 
 - **app** est publié sur le port hôte `8081` (→ `3000` dans le conteneur) et
-  parle à Postgres sur `launcher-internal` (rôles `app_reader` / `app_writer`).
+  parle à Postgres sur `data-launcher` (rôles `app_reader` / `app_writer`).
   Aucune authentification : accès LAN de confiance uniquement.
 - **n8n** (stack séparée, pas dans ce compose) atteint Postgres via le réseau
-  partagé `shared-n8n`, avec le rôle `n8n_writer`. Les 7 workflows cron
+  partagé `integration-n8n-launcher`, avec le rôle `n8n_writer`. Les 7 workflows cron
   écrivent dans les tables de collecte (`meteo`, `calendar`, `applications`,
   `services`, `signals`).
 
@@ -57,13 +57,13 @@ Sur l'hôte homelab :
 - Docker + Docker Compose v2.
 - La stack **n8n** en route (pour l'Étage 3 ; l'app fonctionne sans, les cartes
   de collecte tombent juste en `—`).
-- Le réseau externe `shared-n8n` existe. Il est à créer et à attacher à n8n :
+- Le réseau externe interne `integration-n8n-launcher` existe. Il est à créer et à attacher à n8n :
 
   ```bash
-  docker network create shared-n8n
+  docker network create --internal integration-n8n-launcher
   ```
 
-  Puis ajoute `shared-n8n` au bloc `networks:` du compose de ta stack n8n, et
+  Puis ajoute `integration-n8n-launcher` au bloc `networks:` du compose de ta stack n8n, et
   recrée le conteneur n8n pour qu'il rejoigne le réseau.
 - Le port hôte `8081` est libre sur l'hôte.
 
@@ -170,10 +170,11 @@ Variables dérivées / fixées par le compose (pas à mettre dans `.env`) :
 
 | Réseau | Type | Qui s'y connecte | Pourquoi |
 |---|---|---|---|
-| `launcher-internal` | bridge (créé) | app, postgres | Trafic app ↔ DB, privé. |
-| `shared-n8n` | externe | postgres | Accès de la stack n8n à Postgres (`n8n_writer`). |
+| `launcher-access` | bridge (créé) | app | Accès LAN au front et sortie réseau de l'app. |
+| `data-launcher` | bridge interne (créé) | app, postgres | Trafic app ↔ DB, privé et sans sortie Internet pour Postgres. |
+| `integration-n8n-launcher` | externe interne | postgres, n8n | Accès dédié de n8n à Postgres (`n8n_writer`). |
 
-Le réseau `shared-n8n` (`external: true`) doit **préexister** ; sinon
+Le réseau `integration-n8n-launcher` (`external: true`) doit **préexister** ; sinon
 `docker compose up` échoue. Le front est exposé via le port hôte `8081`
 (mapping `8081:3000` du service `app`), pas via un réseau de proxy.
 
@@ -251,12 +252,12 @@ docker compose exec -T postgres psql -U postgres launcher < launcher-backup.sql
 
 | Symptôme | Cause probable | Correctif |
 |---|---|---|
-| `network shared-n8n declared as external, but could not be found` | Réseau externe absent | `docker network create shared-n8n`, puis l'attacher à la stack n8n. |
+| `network integration-n8n-launcher declared as external, but could not be found` | Réseau externe absent | `docker network create --internal integration-n8n-launcher`, puis l'attacher à la stack n8n. |
 | Port `8081` déjà utilisé (`bind: address already in use`) | Un autre service écoute sur `8081` | Changer le port hôte dans `docker-compose.yml` (`"<libre>:3000"`). |
 | `app` redémarre en boucle, log `Invalid environment:` | Variable requise manquante/malformée dans `.env` | Comparer `.env` à `.env.example` ; vérifier que les URLs sont des URLs valides et que les `*_PWD` sont non vides. |
 | `app` redémarre, log `ERROR: PG_ADMIN_URL_BASE not set` | Le compose n'a pas injecté l'URL admin | Vérifier `PG_ADMIN_PWD` dans `.env` et le bloc `environment:` du service `app`. |
 | Migrations en échec sur les rôles | Mots de passe GUC non transmis | Vérifier `APP_READER_PWD` / `APP_WRITER_PWD` / `N8N_WRITER_PWD` dans `.env`. |
-| Cartes du cockpit toutes en `—` | n8n n'écrit pas dans la base | Vérifier que n8n est sur `shared-n8n` et que ses credentials Postgres utilisent `n8n_writer` + `N8N_WRITER_PWD`. |
+| Cartes du cockpit toutes en `—` | n8n n'écrit pas dans la base | Vérifier que n8n est sur `integration-n8n-launcher` et que ses credentials Postgres utilisent `n8n_writer` + `N8N_WRITER_PWD`. |
 | Front injoignable sur `:8081` mais conteneurs sains | Pare-feu hôte, ou accès hors LAN | Vérifier que la machine cliente est sur le LAN et que le pare-feu de l'hôte autorise `8081`. |
 
 ---

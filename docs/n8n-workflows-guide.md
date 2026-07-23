@@ -8,7 +8,7 @@ Document de référence pour construire les 7 workflows du Tier 3 (Collecte) dan
 
 ### 1.1 Accès réseau
 
-Le Postgres du launcher est attaché au réseau Docker externe `shared-n8n` (voir `docker-compose.yml`). Depuis le container n8n, il est joignable à l'adresse **`postgres:5432`**. Aucun port n'est publié sur l'hôte : c'est normal.
+Le Postgres du launcher est attaché au réseau Docker externe et interne `integration-n8n-launcher` (voir `docker-compose.yml`). Depuis le container n8n, il est joignable à l'adresse **`postgres:5432`**. Aucun port n'est publié sur l'hôte : c'est normal.
 
 ### 1.2 Credential Postgres (n8n → Credentials → New → Postgres)
 
@@ -488,4 +488,4 @@ Dans ta DB todos Notion existante, ajoute une propriété **`Launcher ID`** (typ
 | `canceling statement due to statement timeout` | Requête > 10 s (timeout du rôle) — batcher ou simplifier |
 | Webhook 403 | `X-Webhook-Token` ≠ `N8N_TODO_WEBHOOK_TOKEN` |
 | Notion 404 | DB non partagée avec l'intégration |
-| `connection refused` vers `postgres` | n8n pas sur le réseau `shared-n8n`, ou stack launcher down |
+| `connection refused` vers `postgres` | n8n pas sur le réseau `integration-n8n-launcher`, ou stack launcher down |
