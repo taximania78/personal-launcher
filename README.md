@@ -43,7 +43,7 @@ Open `http://localhost:3000`.
 ## Quickstart (prod / homelab deploy — NOT for local runs)
 
 > ⚠️ This path is for deploying to the homelab only. It will **not** run on a
-> dev machine: it needs the external `shared-n8n` network (missing on a laptop).
+> dev machine: it needs the external `integration-n8n-launcher` network (missing on a laptop).
 > The front is published on host port `8081`, **LAN access only, no auth**. To
 > run locally, use `pnpm dev:up` above.
 
@@ -55,9 +55,9 @@ docker compose up -d --build
 
 The app reaches the front on `http://<host>:8081` once up. It expects one
 external Docker network to exist before `docker compose up`:
-- `shared-n8n` (your existing n8n stack — attach it to this network so n8n can write to Postgres)
+- `integration-n8n-launcher` (your existing n8n stack — attach it to this network so n8n can write to Postgres)
 
-If it doesn't exist: `docker network create shared-n8n`, then add it to your n8n compose's `networks` block.
+If it doesn't exist: `docker network create --internal integration-n8n-launcher`, then add it to your n8n compose's `networks` block.
 
 > 📘 Guide de déploiement complet (topologie, variables d'env, réseaux, rôles
 > Postgres, opérations, dépannage) : [`docs/deployment.md`](docs/deployment.md).
