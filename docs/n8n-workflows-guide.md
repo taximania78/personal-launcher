@@ -228,7 +228,7 @@ Query Parameters : `{{ [$json.uids] }}`
 
 ## 4. `notion-applications` — Notion → `applications`
 
-**4 nodes : Schedule (10 min) → Notion (Get Many) → Code (mapping) → Postgres (upsert) — puis cleanup (2 nodes), voir plus bas.**
+**5 nodes : Schedule (10 min) → Notion (Get Many) → Code (mapping) → Postgres (upsert) → Code (alerte statut non mappé) — puis cleanup (2 nodes), voir plus bas.**
 
 ### Node Notion
 
@@ -240,16 +240,35 @@ Query Parameters : `{{ [$json.uids] }}`
 
 ### Node Code (mapping propriétés)
 
-⚠️ **Point de compatibilité critique — la canonicalisation du statut.** La DB Notion est en français (`Candidature envoyée`, `Entretien RH`, `Refus`), mais l'app code en dur des clés **anglaises** : `JobCard` lit `kpis['Applied']` / `kpis['Evaluated']` / `kpis['Interview']`, et `getPendingFollowups()` filtre `WHERE status = 'Applied'`. Sans la table de correspondance ci-dessous, tous les KPI restent à 0 et « Relances dues » ne se déclenche jamais. (Alternative : franciser l'app à la place — mais tant qu'elle attend `Applied`, on traduit ici.)
+⚠️ **Point de compatibilité critique — la canonicalisation du statut.** La DB Notion est en français, mais l'app code en dur des clés **anglaises** : `JobCard` lit `kpis['Applied']` / `kpis['Interview']` / `kpis['Rejected']`, et `getPendingFollowups()` filtre `WHERE status = 'Applied'`. Sans la table de correspondance ci-dessous, tous les KPI restent à 0 et « Relances dues » ne se déclenche jamais. (Alternative : franciser l'app à la place — mais tant qu'elle attend `Applied`, on traduit ici.)
+
+**La table doit couvrir les 8 options du select `Status`, sans exception.** Elle les replie sur les 3 seules clés que l'app comprend :
+
+| Notion | Clé canonique | Sens |
+|---|---|---|
+| Candidature envoyée | `Applied` | envoyée, pas encore de retour — alimente « Relances dues » |
+| Entretien RH, Entretien manager, Case study, Entretien final, Offre | `Interview` | une discussion est engagée |
+| Refus, Abandon | `Rejected` | terminé |
 
 ```js
 // Notion "Get Many" (Simplify Output: ON) → lignes pour la table `applications`.
 // On traduit les statuts FR de Notion vers les clés canoniques attendues par l'app.
+// L'app ne comprend QUE 3 clés : Applied / Interview / Rejected.
+// Les 8 options du select `Status` de Notion sont couvertes ci-dessous. Une valeur
+// absente de cette table est un bug de config, PAS une donnée : elle tombe sur
+// 'Unknown' et le node « Alerte statuts non mappés » fait échouer l'exécution
+// APRÈS l'upsert — la synchro n'est donc jamais bloquée.
 const STATUS = {
-  'Candidature envoyée': 'Applied',
-  'Entretien RH':        'Interview',
-  'Refus':               'Rejected',
-  // 'En cours d’évaluation': 'Evaluated',  // ajoute tes statuts au fur et à mesure
+  'Candidature envoyée': 'Applied',    // envoyée, pas encore de retour
+
+  'Entretien RH':        'Interview',  // ↓ une discussion est engagée
+  'Entretien manager':   'Interview',
+  'Case study':          'Interview',
+  'Entretien final':     'Interview',
+  'Offre':               'Interview',
+
+  'Refus':               'Rejected',   // ↓ terminé
+  'Abandon':             'Rejected',
 };
 
 const date = (d) => (d && d.start) ? d.start : null;   // {start,end,time_zone} → "2026-06-16"
@@ -260,12 +279,33 @@ return $input.all()
     notion_id:    p.id,
     company:      p.property_entreprise || '—',
     role:         p.property_poste || p.name || null,
-    status:       STATUS[p.property_status] ?? p.property_status ?? 'Unknown',
+    status:       STATUS[p.property_status] ?? 'Unknown',
+    _raw_status:  p.property_status ?? null,             // lu par le node d'alerte, ignoré par l'upsert
     score:        null,                                  // pas de propriété Score dans cette DB
     last_contact: date(p.property_application_date),     // colonne DATE
     next_event:   date(p.property_date_prochaine_action),// colonne TIMESTAMPTZ (date → minuit)
     notes:        p.property_commentaire || null,
   }}));
+```
+
+> **Ne remets jamais le fallback `?? p.property_status`.** C'est lui qui a causé le bug du 2026-07-30 : le libellé FR brut partait en base (`Case study`, `Abandon`), `getJobKpis()` le rangeait sous sa propre clé, et le KPI « Entretiens » affichait 1 au lieu de 2 — silencieusement, pendant des semaines.
+
+### Node Code — alerte statut non mappé (après l'upsert)
+
+Branché **derrière** le node Postgres, `Execute Once` = ON. L'ordre est le garde-fou : les lignes sont déjà écrites, donc un statut inconnu ne peut pas bloquer la synchro, mais l'exécution part en rouge dans n8n en nommant le fautif.
+
+```js
+const inconnus = $('Code in JavaScript').all()
+  .filter(({ json }) => json.status === 'Unknown')
+  .map(({ json }) => `${json.company} → « ${json._raw_status ?? '(vide)'} »`);
+
+if (inconnus.length) {
+  throw new Error(
+    `Statuts Notion non mappés (${inconnus.length}) — KPI faussés tant que la table STATUS du node « Code in JavaScript » n'est pas complétée : ${inconnus.join(' | ')}`
+  );
+}
+
+return $input.all();
 ```
 
 > Notes : `property_application_date` → `last_contact` (c'est la date d'envoi, qui pilote l'âge des relances dans `getPendingFollowups`). La checkbox `property_relance` n'a **pas** de colonne dédiée : l'app recalcule elle-même les relances dues (statut `Applied` + `last_contact` > 7 j), donc elle n'est pas synchronisée — c'est volontaire. `property_alerte` (⚠️) n'est pas un score et reste ignoré.
@@ -475,7 +515,7 @@ Dans ta DB todos Notion existante, ajoute une propriété **`Launcher ID`** (typ
 2. ☐ Workflows importés/créés, timezone `Europe/Paris`, activés un par un
 3. ☐ Pour chacun : exécution manuelle OK → ligne(s) en DB → carte du cockpit alimentée
 4. ☐ `todo-notion-sync` : aller-retour testé depuis l'UI (created, toggled, deleted)
-5. ☐ Mapping statuts vérifié : la table `STATUS` du §4 couvre tous les statuts FR de ta DB Notion → clés canoniques (`Applied` / `Interview` / …) ; un statut non traduit passe tel quel et fausse les KPI
+5. ☐ Mapping statuts vérifié : la table `STATUS` du §4 couvre **les 8 options** du select `Status` de Notion → 3 clés canoniques (`Applied` / `Interview` / `Rejected`). Un statut oublié tombe sur `Unknown` et le node d'alerte fait échouer l'exécution en le nommant — vérifie ce node présent et branché après l'upsert
 6. ☐ Chaque workflow exporté (⋯ → Download) → remplace le stub dans `n8n/workflows/` → commit
 7. ☐ Après 24 h : aucun badge stale sur le cockpit ; sinon ouvrir n8n → Executions du workflow concerné
 
