@@ -21,6 +21,8 @@ export async function JobCard() {
     // Somme de tous les statuts, pas `Applied + Rejected` : toute candidature en
     // base a été envoyée, y compris celles en entretien. Un statut ajouté côté
     // Notion compte donc dans le total même avant d'être mappé (cf. n8n §4).
+    // Applied + Interview + Rejected partitionnent ce total : si les 3 tuiles ne
+    // s'additionnent pas à `totalSent`, c'est qu'un statut Notion n'est pas mappé.
     const totalSent = Object.values(kpis).reduce((a, b) => a + b, 0)
 
     const candidates: { at: Date, label: string }[] = []
@@ -34,7 +36,8 @@ export async function JobCard() {
       <Card title="Job search">
         <div className="grid gap-2.5 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))' }}>
           <KpiTile label="Envoyées" value={totalSent} />
-          <KpiTile label="Entretiens" value={kpis['Interview'] ?? 0} />
+          <KpiTile label="En attente" value={kpis['Applied'] ?? 0} />
+          <KpiTile label="En discussion" value={kpis['Interview'] ?? 0} />
           <KpiTile label="Refusées" value={kpis['Rejected'] ?? 0} />
           <KpiTile label="Relances dues" value={followups.length} accent={followups.length > 0 ? 'danger' : 'default'} />
         </div>

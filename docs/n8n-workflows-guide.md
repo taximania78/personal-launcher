@@ -240,7 +240,7 @@ Query Parameters : `{{ [$json.uids] }}`
 
 ### Node Code (mapping propriétés)
 
-⚠️ **Point de compatibilité critique — la canonicalisation du statut.** La DB Notion est en français, mais l'app code en dur des clés **anglaises** : `JobCard` lit `kpis['Interview']` / `kpis['Rejected']`, et `getPendingFollowups()` filtre `WHERE status = 'Applied'`. Sans la table de correspondance ci-dessous, tous les KPI restent à 0 et « Relances dues » ne se déclenche jamais. (Alternative : franciser l'app à la place — mais tant qu'elle attend `Applied`, on traduit ici.)
+⚠️ **Point de compatibilité critique — la canonicalisation du statut.** La DB Notion est en français, mais l'app code en dur des clés **anglaises** : `JobCard` lit `kpis['Applied']` / `kpis['Interview']` / `kpis['Rejected']`, et `getPendingFollowups()` filtre `WHERE status = 'Applied'`. Sans la table de correspondance ci-dessous, tous les KPI restent à 0 et « Relances dues » ne se déclenche jamais. (Alternative : franciser l'app à la place — mais tant qu'elle attend `Applied`, on traduit ici.)
 
 **La table doit couvrir les 8 options du select `Status`, sans exception.** Elle les replie sur les 3 seules clés que l'app comprend :
 
