@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "next": "16.2.12",
     "pg": "^8.22.0",
     "react": "19.2.8",
@@ -37,7 +37,7 @@
     "node-pg-migrate": "^9.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.1.5",
+    "vite": "^8.2.0",
     "vitest": "^4.1.10"
   }
 }
