@@ -17,7 +17,7 @@
   "dependencies": {
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.31.0",
-    "next": "16.3.0",
+    "next": "16.3.2",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -29,15 +29,15 @@
     "@types/node": "^22.20.1",
     "@types/pg": "^8.21.0",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitest/ui": "^4.1.10",
+    "@types/react-dom": "^19.2.5",
+    "@vitest/ui": "^4.1.11",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.2",
     "node-pg-migrate": "^9.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }
