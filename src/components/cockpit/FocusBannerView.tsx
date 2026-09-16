@@ -3,6 +3,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { Target } from 'lucide-react'
 import type { FocusBannerState } from './focus-banner-state'
 import { emitDeepWorkSync, onDeepWorkSync } from '@/lib/deep-work-sync'
+import { useServerState } from '@/lib/use-server-state'
 
 export function FocusBannerView({
   state: initial, todoId, todayIso,
@@ -11,8 +12,8 @@ export function FocusBannerView({
   todoId: number | null
   todayIso: string
 }) {
-  const [state, setState] = useState(initial)
   const [isPending, startTransition] = useTransition()
+  const [state, setState] = useServerState(initial, { frozen: isPending })
 
   useEffect(() => {
     return onDeepWorkSync(detail => {

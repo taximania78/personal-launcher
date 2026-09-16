@@ -8,8 +8,8 @@ export function formatCountdown(target: Date): string | null {
   return `${hours}h${mins.toString().padStart(2, '0')}`
 }
 
-export function formatRelative(past: Date): string {
-  const diffMs = Date.now() - past.getTime()
+export function formatRelative(past: Date, now: Date = new Date()): string {
+  const diffMs = now.getTime() - past.getTime()
   const totalSec = Math.floor(diffMs / 1000)
   if (totalSec < 60) return 'à l\'instant'
   const mins = Math.floor(totalSec / 60)

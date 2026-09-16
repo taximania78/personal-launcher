@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useTransition } from 'react'
 import { TileIcon } from '../ui/TileIcon'
 import { emitDeepWorkSync, onDeepWorkSync } from '@/lib/deep-work-sync'
+import { useServerState } from '@/lib/use-server-state'
 
 export type HabitRow = { id: number; name: string; icon: string | null }
 
@@ -58,8 +59,9 @@ export function HabitsGrid({ habits, days, today, initialChecks, confettiEnabled
   initialChecks: string[]  // clés "habitId:day"
   confettiEnabled: boolean // confettis à la complétion du jour
 }) {
-  const [checks, setChecks] = useState(() => new Set(initialChecks))
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
+  const serverChecks = useMemo(() => new Set(initialChecks), [initialChecks])
+  const [checks, setChecks] = useServerState(serverChecks, { frozen: isPending })
   const deepWorkHabit = habits.find(h => h.name.toLowerCase() === 'deep work')
 
   // Miroir de `checks` pour lire l'état frais dans le handler deep-work (dont le
@@ -84,7 +86,7 @@ export function HabitsGrid({ habits, days, today, initialChecks, confettiEnabled
         allCheckedForDay(habits, next, today)
       ) celebrate()
     })
-  }, [deepWorkHabit, confettiEnabled, habits, today])
+  }, [deepWorkHabit, confettiEnabled, habits, today, setChecks])
 
   function toggle(habitId: number, day: string) {
     const key = `${habitId}:${day}`
