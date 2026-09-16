@@ -54,22 +54,22 @@ describe('shouldRefresh', () => {
 describe('refreshChipLabel', () => {
   const at = new Date('2026-09-16T13:42:00Z') // 15:42 à Paris (CEST)
 
-  it('pendant un refresh → « actualisation… », quel que soit l’âge', () => {
-    expect(refreshChipLabel({ pending: true, lastUpdatedAt: at, now: at })).toBe('actualisation…')
+  it('pendant un refresh → « Mise à jour… », quel que soit l’âge', () => {
+    expect(refreshChipLabel({ pending: true, lastUpdatedAt: at, now: at })).toBe('Mise à jour…')
   })
 
   it('avant le premier montage (pas de date) → null', () => {
     expect(refreshChipLabel({ pending: false, lastUpdatedAt: null, now: at })).toBeNull()
   })
 
-  it('juste après un refresh → « à l’instant »', () => {
+  it('juste après un refresh → « Mis à jour à l’instant »', () => {
     const now = new Date(at.getTime() + 5_000)
-    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('à l\'instant')
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('Mis à jour à l\'instant')
   })
 
-  it('quelques minutes plus tard → « il y a N min »', () => {
+  it('quelques minutes plus tard → « Mis à jour il y a N min »', () => {
     const now = new Date(at.getTime() + 2 * 60_000)
-    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('il y a 2 min')
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('Mis à jour il y a 2 min')
   })
 })
 

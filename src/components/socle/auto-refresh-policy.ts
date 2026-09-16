@@ -31,9 +31,9 @@ export function shouldRefresh(
 export function refreshChipLabel(
   { pending, lastUpdatedAt, now }: { pending: boolean; lastUpdatedAt: Date | null; now: Date },
 ): string | null {
-  if (pending) return 'actualisation…'
+  if (pending) return 'Mise à jour…'
   if (!lastUpdatedAt) return null
-  return formatRelative(lastUpdatedAt, now)
+  return `Mis à jour ${formatRelative(lastUpdatedAt, now)}`
 }
 
 const TITLE_FMT = new Intl.DateTimeFormat('fr-FR', {
