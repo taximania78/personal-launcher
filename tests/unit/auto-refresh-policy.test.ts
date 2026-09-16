@@ -71,11 +71,25 @@ describe('refreshChipLabel', () => {
     const now = new Date(at.getTime() + 2 * 60_000)
     expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('Mis à jour il y a 2 min')
   })
+
+  it('cartes en erreur → « Erreur lors de la mise à jour »', () => {
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now: at, failed: true }))
+      .toBe('Erreur lors de la mise à jour')
+  })
+
+  it('pendant un refresh, l’erreur précédente s’efface au profit de « Mise à jour… »', () => {
+    expect(refreshChipLabel({ pending: true, lastUpdatedAt: at, now: at, failed: true })).toBe('Mise à jour…')
+  })
 })
 
 describe('refreshChipTitle', () => {
+  const at = new Date('2026-09-16T13:42:00Z')
+
   it('date et heure complètes en français, fuseau Europe/Paris', () => {
-    const at = new Date('2026-09-16T13:42:00Z')
     expect(refreshChipTitle(at)).toBe('Dernière mise à jour : mercredi 16 septembre à 15:42')
+  })
+
+  it('en erreur → la date est celle de la dernière réussie', () => {
+    expect(refreshChipTitle(at, true)).toBe('Dernière mise à jour réussie : mercredi 16 septembre à 15:42')
   })
 })

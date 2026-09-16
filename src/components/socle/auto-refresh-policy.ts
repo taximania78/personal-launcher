@@ -28,10 +28,15 @@ export function shouldRefresh(
 
 // Libellé du chip de statut. `null` tant que le composant n'est pas monté
 // (SSR : pas de date côté client → on ne rend que le point, comme l'horloge).
+// `failed` : au moins une carte est en erreur → le dernier rendu n'a pas
+// rapporté de données fraîches, on le dit plutôt que d'afficher « Mis à jour ».
 export function refreshChipLabel(
-  { pending, lastUpdatedAt, now }: { pending: boolean; lastUpdatedAt: Date | null; now: Date },
+  { pending, lastUpdatedAt, now, failed = false }: {
+    pending: boolean; lastUpdatedAt: Date | null; now: Date; failed?: boolean
+  },
 ): string | null {
   if (pending) return 'Mise à jour…'
+  if (failed) return 'Erreur lors de la mise à jour'
   if (!lastUpdatedAt) return null
   return `Mis à jour ${formatRelative(lastUpdatedAt, now)}`
 }
@@ -41,7 +46,9 @@ const TITLE_FMT = new Intl.DateTimeFormat('fr-FR', {
   timeZone: 'Europe/Paris',
 })
 
-// Info-bulle : la date et l'heure complètes, le libellé restant relatif.
-export function refreshChipTitle(lastUpdatedAt: Date): string {
-  return `Dernière mise à jour : ${TITLE_FMT.format(lastUpdatedAt)}`
+// Info-bulle : la date et l'heure complètes, le libellé restant relatif. En
+// erreur, `lastUpdatedAt` n'a pas avancé : c'est la dernière réussie.
+export function refreshChipTitle(lastUpdatedAt: Date, failed = false): string {
+  const what = failed ? 'Dernière mise à jour réussie' : 'Dernière mise à jour'
+  return `${what} : ${TITLE_FMT.format(lastUpdatedAt)}`
 }
