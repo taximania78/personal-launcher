@@ -1,5 +1,6 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useServerState } from '@/lib/use-server-state'
 import { splitActiveCompleted } from './todo-list-order'
 
 export type TodoRow = {
@@ -175,9 +176,9 @@ export function TodoList({
   tomorrowIso: string
 }) {
   const [tab, setTab] = useState<Tab>('today')
-  const [todayTodos, setTodayTodos] = useState(today)
-  const [tomorrowTodos, setTomorrowTodos] = useState(tomorrow)
   const [isPending, startTransition] = useTransition()
+  const [todayTodos, setTodayTodos] = useServerState(today, { frozen: isPending })
+  const [tomorrowTodos, setTomorrowTodos] = useServerState(tomorrow, { frozen: isPending })
   const [newText, setNewText] = useState('')
   const [newDate, setNewDate] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)

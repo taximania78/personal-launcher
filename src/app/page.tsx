@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Header } from '@/components/socle/Header'
 import { SearchBar } from '@/components/socle/SearchBar'
 import { Launcher } from '@/components/socle/Launcher'
+import { AutoRefresh } from '@/components/socle/AutoRefresh'
 import { FocusBanner } from '@/components/cockpit/FocusBanner'
 import { TodoCard } from '@/components/cockpit/TodoCard'
 import { WeekCard } from '@/components/cockpit/WeekCard'
@@ -28,6 +29,7 @@ export default async function Home() {
 
   return (
     <main>
+      <AutoRefresh />
       <Header />
       <SearchBar whoogleUrl={whoogleUrl} />
       <Launcher />

@@ -1,11 +1,12 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useServerState } from '@/lib/use-server-state'
 
 export type WeekRow = { id: number; text: string; done: boolean }
 
 export function WeekPriorities({ initial }: { initial: WeekRow[] }) {
-  const [rows, setRows] = useState(initial)
   const [isPending, startTransition] = useTransition()
+  const [rows, setRows] = useServerState(initial, { frozen: isPending })
   const [newText, setNewText] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
