@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Settings } from 'lucide-react'
+import { AutoRefresh } from './AutoRefresh'
 import { Clock } from './Clock'
 import { Weather } from './Weather'
 import { siteConfig } from '@/lib/site-config'
@@ -14,6 +15,7 @@ export function Header() {
         {siteConfig.userName ? `Bonjour ${siteConfig.userName}` : 'Bonjour'}
       </div>
       <div className="flex gap-2 items-center">
+        <AutoRefresh />
         <Weather />
         <Clock />
         <Link

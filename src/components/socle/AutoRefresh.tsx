@@ -1,7 +1,9 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { shouldRefresh, VISIBLE_STALE_MS, type RefreshTrigger } from './auto-refresh-policy'
+import {
+  shouldRefresh, refreshChipLabel, refreshChipTitle, VISIBLE_STALE_MS, type RefreshTrigger,
+} from './auto-refresh-policy'
 
 // Re-rend la page (Server Components → données fraîches) quand on revient
 // dessus — depuis un autre onglet (`visibilitychange`) ou depuis une autre
@@ -11,8 +13,36 @@ import { shouldRefresh, VISIBLE_STALE_MS, type RefreshTrigger } from './auto-ref
 // `router.refresh()` tourne dans une transition : le contenu courant reste
 // affiché, pas de flash des skeletons ; l'état client est conservé, d'où
 // `useServerState` dans les cartes interactives pour se réaligner.
+//
+// Rend le chip de statut du header : point vert + « il y a N min », qui pulse
+// pendant l'actualisation ; cliquable pour forcer un refresh.
+
+const TICK_MS = 30_000
+
+// false en SSR et pendant l'hydratation, true ensuite — sans mismatch : le
+// libellé dépend de l'heure du client, que le serveur ne connaît pas (cf. Clock).
+const noopSubscribe = () => () => {}
+function useMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false)
+}
+
 export function AutoRefresh() {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const mounted = useMounted()
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date())
+  const wasPending = useRef(false)
+
+  // Fin de transition = nouveau payload fusionné → c'est l'instant « à jour ».
+  useEffect(() => {
+    if (wasPending.current && !isPending) {
+      const done = new Date()
+      setLastUpdatedAt(done)
+      setNow(done)
+    }
+    wasPending.current = isPending
+  }, [isPending])
 
   useEffect(() => {
     let lastRefreshAt = Date.now()
@@ -31,7 +61,7 @@ export function AutoRefresh() {
       })
       if (!ok) return
       lastRefreshAt = Date.now()
-      router.refresh()
+      startTransition(() => router.refresh())
       armTimer()
     }
 
@@ -39,13 +69,38 @@ export function AutoRefresh() {
     window.addEventListener('focus', onReturn)
     document.addEventListener('visibilitychange', onReturn)
     armTimer()
+    // Le libellé relatif (« il y a N min ») doit vieillir sans événement.
+    const tick = setInterval(() => setNow(new Date()), TICK_MS)
 
     return () => {
       clearTimeout(timer)
+      clearInterval(tick)
       window.removeEventListener('focus', onReturn)
       document.removeEventListener('visibilitychange', onReturn)
     }
   }, [router])
 
-  return null
+  function forceRefresh() {
+    if (isPending) return
+    startTransition(() => router.refresh())
+  }
+
+  const label = mounted ? refreshChipLabel({ pending: isPending, lastUpdatedAt, now }) : null
+
+  return (
+    <button
+      type="button"
+      onClick={forceRefresh}
+      disabled={isPending}
+      title={mounted ? refreshChipTitle(lastUpdatedAt) : undefined}
+      aria-label="Actualiser la page"
+      className="surface-glass-soft inline-flex items-center gap-2 py-1.5 px-3 rounded-[var(--radius-md)] text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:cursor-default"
+    >
+      <span
+        aria-hidden
+        className={`h-1.5 w-1.5 rounded-full bg-[var(--color-text-success)] ${isPending ? 'animate-pulse' : ''}`}
+      />
+      {label && <span>{label}</span>}
+    </button>
+  )
 }

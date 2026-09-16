@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  shouldRefresh, RETURN_DEBOUNCE_MS, VISIBLE_STALE_MS,
+  shouldRefresh, refreshChipLabel, refreshChipTitle, RETURN_DEBOUNCE_MS, VISIBLE_STALE_MS,
 } from '@/components/socle/auto-refresh-policy'
 
 const T0 = 1_700_000_000_000
@@ -48,5 +48,34 @@ describe('shouldRefresh', () => {
 
   it('l’anti-rebond « return » est bien plus court que la péremption « timer »', () => {
     expect(RETURN_DEBOUNCE_MS).toBeLessThan(VISIBLE_STALE_MS)
+  })
+})
+
+describe('refreshChipLabel', () => {
+  const at = new Date('2026-09-16T13:42:00Z') // 15:42 à Paris (CEST)
+
+  it('pendant un refresh → « actualisation… », quel que soit l’âge', () => {
+    expect(refreshChipLabel({ pending: true, lastUpdatedAt: at, now: at })).toBe('actualisation…')
+  })
+
+  it('avant le premier montage (pas de date) → null', () => {
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: null, now: at })).toBeNull()
+  })
+
+  it('juste après un refresh → « à l’instant »', () => {
+    const now = new Date(at.getTime() + 5_000)
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('à l\'instant')
+  })
+
+  it('quelques minutes plus tard → « il y a N min »', () => {
+    const now = new Date(at.getTime() + 2 * 60_000)
+    expect(refreshChipLabel({ pending: false, lastUpdatedAt: at, now })).toBe('il y a 2 min')
+  })
+})
+
+describe('refreshChipTitle', () => {
+  it('date et heure complètes en français, fuseau Europe/Paris', () => {
+    const at = new Date('2026-09-16T13:42:00Z')
+    expect(refreshChipTitle(at)).toBe('Dernière mise à jour : mercredi 16 septembre à 15:42')
   })
 })
