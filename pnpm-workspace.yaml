@@ -7,5 +7,11 @@ onlyBuiltDependencies:
 # Force postcss patché : next épingle postcss à 8.4.31 (XSS, alerte Dependabot).
 # vite est traité via une devDependency directe (cf. package.json) car il est tiré
 # comme peerDependency de @vitest/mocker → un override ne le bumpe pas.
+# brace-expansion / js-yaml : DoS CPU/mémoire (pnpm audit), tirés transitivement
+# par eslint, eslint-config-next et node-pg-migrate ; on force les correctifs
+# sans changer de majeure. braces <=3.0.3 n'a pas de correctif publié (dev only).
 overrides:
   "postcss@<8.5.10": ">=8.5.10"
+  "brace-expansion@<1.1.21": "^1.1.21"
+  "brace-expansion@>=4 <5.0.12": "^5.0.12"
+  "js-yaml@>=4 <4.3.2": "^4.3.2"

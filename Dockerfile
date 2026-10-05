@@ -26,7 +26,7 @@ RUN DATABASE_URL=postgres://x:x@localhost/x \
 # copy the whole tree — node-pg-migrate then resolves its deps correctly.
 FROM base AS migrate-deps
 WORKDIR /migrate
-RUN npm install --omit=dev --no-audit --no-fund node-pg-migrate@^8.0.4 pg@^8.21.0
+RUN npm install --omit=dev --no-audit --no-fund node-pg-migrate@^9.0.0 pg@^8.23.0
 
 FROM base AS runner
 WORKDIR /app
